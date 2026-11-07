@@ -54,6 +54,13 @@ class AIFirst_Plugin {
 		add_action( 'init', array( $this, 'register_post_types' ) );
 		add_action( 'init', array( $this, 'register_taxonomies' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_show_activation_notice' ) );
+
+		// Session 2: REST + admin.
+		( new AIFirst_REST() )->register();
+
+		if ( is_admin() ) {
+			( new AIFirst_Admin() )->register();
+		}
 	}
 
 	/**

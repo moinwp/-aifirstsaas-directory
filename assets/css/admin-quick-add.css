@@ -1,0 +1,133 @@
+/* AI First — admin: Quick Add + Settings
+ * @since 0.2.0
+ */
+
+.aifirst-wrap .aifirst-paste-grid {
+	display: grid;
+	grid-template-columns: minmax(280px, 1fr) minmax(320px, 2fr);
+	gap: 24px;
+	margin-top: 16px;
+}
+
+@media (max-width: 1100px) {
+	.aifirst-wrap .aifirst-paste-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+.aifirst-wrap .aifirst-section {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	padding: 12px 16px;
+	margin: 0 0 16px;
+	border-radius: 4px;
+}
+
+.aifirst-wrap .aifirst-section > legend {
+	font-weight: 600;
+	padding: 0 6px;
+}
+
+.aifirst-wrap .aifirst-field {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin: 6px 0;
+}
+
+.aifirst-wrap .aifirst-field label {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.aifirst-wrap .aifirst-field .aifirst-label {
+	font-weight: 600;
+	font-size: 12px;
+}
+
+.aifirst-wrap .aifirst-field-checkbox label {
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+}
+
+.aifirst-wrap .aifirst-repeater .aifirst-row {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+	gap: 8px;
+	align-items: start;
+	padding: 8px;
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+	margin-bottom: 8px;
+	background: #f6f7f7;
+}
+
+.aifirst-wrap .aifirst-repeater .aifirst-row-field {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	font-size: 12px;
+}
+
+.aifirst-wrap .aifirst-repeater input[type="text"],
+.aifirst-wrap .aifirst-repeater input[type="url"],
+.aifirst-wrap .aifirst-repeater input[type="number"],
+.aifirst-wrap .aifirst-repeater select,
+.aifirst-wrap .aifirst-repeater textarea {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.aifirst-wrap .aifirst-status {
+	margin-left: 8px;
+	font-style: italic;
+	color: #50575e;
+}
+
+.aifirst-wrap .aifirst-status.is-error {
+	color: #b32d2e;
+	font-style: normal;
+	font-weight: 600;
+}
+
+.aifirst-wrap .aifirst-status.is-success {
+	color: #00754a;
+	font-style: normal;
+	font-weight: 600;
+}
+
+.aifirst-wrap .aifirst-result {
+	margin-top: 12px;
+	padding: 10px 14px;
+	background: #edfaef;
+	border-left: 4px solid #00754a;
+}
+
+.aifirst-wrap .aifirst-result.is-error {
+	background: #fcf0f1;
+	border-left-color: #b32d2e;
+}
+
+.aifirst-wrap .aifirst-actions {
+	margin-top: 12px;
+}
+
+.aifirst-wrap .aifirst-test-result {
+	margin-left: 10px;
+}
+
+.aifirst-wrap .aifirst-test-result.is-error {
+	color: #b32d2e;
+	font-weight: 600;
+}
+
+.aifirst-wrap .aifirst-test-result.is-success {
+	color: #00754a;
+	font-weight: 600;
+}
+
+.aifirst-wrap .aifirst-remove-row {
+	color: #b32d2e;
+}
