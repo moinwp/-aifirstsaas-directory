@@ -63,7 +63,7 @@
 		} );
 
 		// Repeaters.
-		[ 'plans', 'faq', 'radar', 'cannot_do', 'relationships' ].forEach( function ( group ) {
+		[ 'plans', 'faq', 'radar', 'cannot_do', 'relationships', 'tool_features', 'maturity_breakdown', 'industries', 'sentiment', 'quotes' ].forEach( function ( group ) {
 			const rows = Array.isArray( record[ group ] ) ? record[ group ] : [];
 			const $rep = $( '[data-aifirst-repeater="' + group + '"]' );
 			const $rows = $rep.find( '.aifirst-rows' );
@@ -100,7 +100,7 @@
 			cursor[ leaf ] = val;
 		} );
 
-		[ 'plans', 'faq', 'radar', 'cannot_do', 'relationships' ].forEach( function ( group ) {
+		[ 'plans', 'faq', 'radar', 'cannot_do', 'relationships', 'tool_features', 'maturity_breakdown', 'industries', 'sentiment', 'quotes' ].forEach( function ( group ) {
 			record[ group ] = [];
 			$( '[data-aifirst-repeater="' + group + '"] .aifirst-row' ).each( function () {
 				const $row = $( this );

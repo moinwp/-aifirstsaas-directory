@@ -21,6 +21,13 @@ $aifirst_tables = array(
 	$wpdb->prefix . 'aifirst_radar',
 	$wpdb->prefix . 'aifirst_cannot_do',
 	$wpdb->prefix . 'aifirst_relationships',
+	$wpdb->prefix . 'aifirst_tool_features',
+	$wpdb->prefix . 'aifirst_maturity_breakdown',
+	$wpdb->prefix . 'aifirst_industries',
+	$wpdb->prefix . 'aifirst_sentiment',
+	$wpdb->prefix . 'aifirst_quotes',
+	$wpdb->prefix . 'aifirst_category_meta',
+	$wpdb->prefix . 'aifirst_feature_meta',
 );
 
 foreach ( $aifirst_tables as $aifirst_table ) {

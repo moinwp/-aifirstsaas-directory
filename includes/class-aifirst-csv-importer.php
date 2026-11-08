@@ -14,10 +14,12 @@
  *   ai_maturity_score, ai_since, ai_type, ai_on_free_plan,
  *   total_ai_features, native_ai_count, thirdparty_ai_count,
  *   last_ai_update, last_verified,
- *   company_size_smb, company_size_mid, company_size_ent,
+ *   company_size_smb, company_size_mid, company_size_ent, company_group_id,
  *   notable_customers, best_for, expert_take,
  *   meta_title, meta_description, h1,
- *   plans, faq, radar, cannot_do, relationships
+ *   plans, faq, radar, cannot_do, relationships,
+ *   tool_features, maturity_breakdown, industries, sentiment, quotes,
+ *   category_meta, feature_meta
  *
  * Sub-rows: multiple rows inside one cell use `||`; fields within a sub-row
  * use `~`; key=value pairs use `=`. Example for a single plan:
@@ -157,7 +159,7 @@ class AIFirst_CSV_Importer {
 			'ai_maturity_score', 'ai_since', 'ai_type', 'ai_on_free_plan',
 			'total_ai_features', 'native_ai_count', 'thirdparty_ai_count',
 			'last_ai_update', 'last_verified',
-			'company_size_smb', 'company_size_mid', 'company_size_ent',
+			'company_size_smb', 'company_size_mid', 'company_size_ent', 'company_group_id',
 			'notable_customers', 'best_for', 'expert_take',
 			'meta_title', 'meta_description', 'h1',
 		);
@@ -167,11 +169,18 @@ class AIFirst_CSV_Importer {
 			}
 		}
 
-		$record['plans']         = $this->parse_subrows( $g( 'plans' ) );
-		$record['faq']           = $this->parse_subrows( $g( 'faq' ) );
-		$record['radar']         = $this->parse_subrows( $g( 'radar' ) );
-		$record['cannot_do']     = $this->parse_subrows( $g( 'cannot_do' ) );
-		$record['relationships'] = $this->parse_subrows( $g( 'relationships' ) );
+		$record['plans']              = $this->parse_subrows( $g( 'plans' ) );
+		$record['faq']                = $this->parse_subrows( $g( 'faq' ) );
+		$record['radar']              = $this->parse_subrows( $g( 'radar' ) );
+		$record['cannot_do']          = $this->parse_subrows( $g( 'cannot_do' ) );
+		$record['relationships']      = $this->parse_subrows( $g( 'relationships' ) );
+		$record['tool_features']      = $this->parse_subrows( $g( 'tool_features' ) );
+		$record['maturity_breakdown'] = $this->parse_subrows( $g( 'maturity_breakdown' ) );
+		$record['industries']         = $this->parse_subrows( $g( 'industries' ) );
+		$record['sentiment']          = $this->parse_subrows( $g( 'sentiment' ) );
+		$record['quotes']             = $this->parse_subrows( $g( 'quotes' ) );
+		$record['category_meta']      = $this->parse_subrows( $g( 'category_meta' ) );
+		$record['feature_meta']       = $this->parse_subrows( $g( 'feature_meta' ) );
 
 		return $record;
 	}

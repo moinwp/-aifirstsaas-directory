@@ -85,12 +85,25 @@ class AIFirst_Intake {
 
 		// Child tables — replace strategy keyed on tool_id.
 		$counts = array(
-			'plans'         => $this->replace_plans( $tool_id, $record['plans'], $errors ),
-			'faq'           => $this->replace_faq( $tool_id, $record['faq'], $errors ),
-			'radar'         => $this->replace_radar( $tool_id, $record['radar'], $errors ),
-			'cannot_do'     => $this->replace_cannot_do( $tool_id, $record['cannot_do'], $errors ),
-			'relationships' => $this->replace_relationships( $tool_id, $record['relationships'], $errors ),
+			'plans'              => $this->replace_plans( $tool_id, $record['plans'], $errors ),
+			'faq'                => $this->replace_faq( $tool_id, $record['faq'], $errors ),
+			'radar'              => $this->replace_radar( $tool_id, $record['radar'], $errors ),
+			'cannot_do'          => $this->replace_cannot_do( $tool_id, $record['cannot_do'], $errors ),
+			'relationships'      => $this->replace_relationships( $tool_id, $record['relationships'], $errors ),
+			'tool_features'      => $this->replace_tool_features( $tool_id, isset( $record['tool_features'] ) ? $record['tool_features'] : array(), $errors ),
+			'maturity_breakdown' => $this->replace_maturity_breakdown( $tool_id, isset( $record['maturity_breakdown'] ) ? $record['maturity_breakdown'] : array(), $errors ),
+			'industries'         => $this->replace_industries( $tool_id, isset( $record['industries'] ) ? $record['industries'] : array(), $errors ),
+			'sentiment'          => $this->replace_sentiment( $tool_id, isset( $record['sentiment'] ) ? $record['sentiment'] : array(), $errors ),
+			'quotes'             => $this->replace_quotes( $tool_id, isset( $record['quotes'] ) ? $record['quotes'] : array(), $errors ),
 		);
+
+		// Term-level long-form content.
+		if ( ! empty( $record['category_meta'] ) ) {
+			$this->upsert_term_meta( 'aifirst_category', $record['category_meta'], $errors );
+		}
+		if ( ! empty( $record['feature_meta'] ) ) {
+			$this->upsert_term_meta( 'aifirst_feature', $record['feature_meta'], $errors );
+		}
 
 		return array(
 			'tool_id'            => $tool_id,
@@ -219,6 +232,7 @@ class AIFirst_Intake {
 			'company_size_smb'    => (int) $meta['company_size_smb'],
 			'company_size_mid'    => (int) $meta['company_size_mid'],
 			'company_size_ent'    => (int) $meta['company_size_ent'],
+			'company_group_id'    => (string) $meta['company_group_id'],
 			'notable_customers'   => (string) $meta['notable_customers'],
 			'best_for'            => (string) $meta['best_for'],
 			'expert_take'         => (string) $meta['expert_take'],
@@ -288,6 +302,7 @@ class AIFirst_Intake {
 			'%d', // company_size_smb
 			'%d', // company_size_mid
 			'%d', // company_size_ent
+			'%s', // company_group_id
 			'%s', // notable_customers
 			'%s', // best_for
 			'%s', // expert_take
@@ -449,9 +464,10 @@ class AIFirst_Intake {
 					'tool_id'         => $tool_id,
 					'order_index'     => (int) $row['order_index'],
 					'limitation_text' => (string) $row['limitation_text'],
+					'workaround'      => (string) ( isset( $row['workaround'] ) ? $row['workaround'] : '' ),
 					'created_at'      => current_time( 'mysql' ),
 				),
-				array( '%s', '%d', '%s', '%s' )
+				array( '%s', '%d', '%s', '%s', '%s' )
 			);
 			if ( false === $ok ) {
 				$errors[] = sprintf( /* translators: %s: db error */ __( 'Cannot-do insert failed: %s', 'aifirstsaas' ), $wpdb->last_error );
@@ -497,5 +513,317 @@ class AIFirst_Intake {
 			}
 		}
 		return $inserted;
+	}
+
+	/**
+	 * Delete-and-insert per-tool feature join rows. Also ensures the
+	 * aifirst_feature term exists for each feature and attaches it to the
+	 * post.
+	 *
+	 * @since 0.3.0
+	 * @param string   $tool_id Slug.
+	 * @param array    $rows    Validated rows.
+	 * @param string[] $errors  By-ref.
+	 * @return int Inserted row count.
+	 */
+	protected function replace_tool_features( $tool_id, array $rows, array &$errors ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'aifirst_tool_features';
+
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE tool_id = %s", $tool_id ) );
+
+		$inserted = 0;
+		foreach ( $rows as $row ) {
+			$ok = $wpdb->insert(
+				$table,
+				array(
+					'tool_id'      => $tool_id,
+					'feature_slug' => (string) $row['feature_slug'],
+					'feature_name' => (string) $row['feature_name'],
+					'plan'         => (string) $row['plan'],
+					'status'       => (string) $row['status'],
+					'is_native'    => (int) $row['is_native'],
+					'since'        => (string) $row['since'],
+					'feature_note' => (string) $row['feature_note'],
+					'created_at'   => current_time( 'mysql' ),
+				),
+				array( '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s' )
+			);
+			if ( false === $ok ) {
+				$errors[] = sprintf( /* translators: %s: db error */ __( 'tool_features insert failed: %s', 'aifirstsaas' ), $wpdb->last_error );
+			} else {
+				++$inserted;
+			}
+		}
+		return $inserted;
+	}
+
+	/**
+	 * Delete-and-insert maturity_breakdown rows for a tool.
+	 *
+	 * @since 0.3.0
+	 * @param string   $tool_id Slug.
+	 * @param array    $rows    Validated rows.
+	 * @param string[] $errors  By-ref.
+	 * @return int Inserted row count.
+	 */
+	protected function replace_maturity_breakdown( $tool_id, array $rows, array &$errors ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'aifirst_maturity_breakdown';
+
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE tool_id = %s", $tool_id ) );
+
+		$inserted = 0;
+		foreach ( $rows as $row ) {
+			$ok = $wpdb->insert(
+				$table,
+				array(
+					'tool_id'       => $tool_id,
+					'order_index'   => (int) $row['order_index'],
+					'criterion'     => (string) $row['criterion'],
+					'score_display' => (string) $row['score_display'],
+					'score_numeric' => $row['score_numeric'],
+					'score_color'   => (string) $row['score_color'],
+					'created_at'    => current_time( 'mysql' ),
+				),
+				array( '%s', '%d', '%s', '%s', '%f', '%s', '%s' )
+			);
+			if ( false === $ok ) {
+				$errors[] = sprintf( /* translators: %s: db error */ __( 'maturity_breakdown insert failed: %s', 'aifirstsaas' ), $wpdb->last_error );
+			} else {
+				++$inserted;
+			}
+		}
+		return $inserted;
+	}
+
+	/**
+	 * Delete-and-insert industries rows for a tool.
+	 *
+	 * @since 0.3.0
+	 * @param string   $tool_id Slug.
+	 * @param array    $rows    Validated rows.
+	 * @param string[] $errors  By-ref.
+	 * @return int Inserted row count.
+	 */
+	protected function replace_industries( $tool_id, array $rows, array &$errors ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'aifirst_industries';
+
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE tool_id = %s", $tool_id ) );
+
+		$inserted = 0;
+		foreach ( $rows as $row ) {
+			$ok = $wpdb->insert(
+				$table,
+				array(
+					'tool_id'     => $tool_id,
+					'order_index' => (int) $row['order_index'],
+					'name'        => (string) $row['name'],
+					'pct'         => (int) $row['pct'],
+					'created_at'  => current_time( 'mysql' ),
+				),
+				array( '%s', '%d', '%s', '%d', '%s' )
+			);
+			if ( false === $ok ) {
+				$errors[] = sprintf( /* translators: %s: db error */ __( 'industries insert failed: %s', 'aifirstsaas' ), $wpdb->last_error );
+			} else {
+				++$inserted;
+			}
+		}
+		return $inserted;
+	}
+
+	/**
+	 * Delete-and-insert sentiment rows for a tool.
+	 *
+	 * @since 0.3.0
+	 * @param string   $tool_id Slug.
+	 * @param array    $rows    Validated rows.
+	 * @param string[] $errors  By-ref.
+	 * @return int Inserted row count.
+	 */
+	protected function replace_sentiment( $tool_id, array $rows, array &$errors ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'aifirst_sentiment';
+
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE tool_id = %s", $tool_id ) );
+
+		$inserted = 0;
+		foreach ( $rows as $row ) {
+			$ok = $wpdb->insert(
+				$table,
+				array(
+					'tool_id'      => $tool_id,
+					'source'       => (string) $row['source'],
+					'score'        => $row['score'],
+					'review_count' => (int) $row['review_count'],
+					'source_url'   => (string) $row['source_url'],
+					'created_at'   => current_time( 'mysql' ),
+				),
+				array( '%s', '%s', '%f', '%d', '%s', '%s' )
+			);
+			if ( false === $ok ) {
+				$errors[] = sprintf( /* translators: %s: db error */ __( 'sentiment insert failed: %s', 'aifirstsaas' ), $wpdb->last_error );
+			} else {
+				++$inserted;
+			}
+		}
+		return $inserted;
+	}
+
+	/**
+	 * Delete-and-insert quotes rows for a tool.
+	 *
+	 * @since 0.3.0
+	 * @param string   $tool_id Slug.
+	 * @param array    $rows    Validated rows.
+	 * @param string[] $errors  By-ref.
+	 * @return int Inserted row count.
+	 */
+	protected function replace_quotes( $tool_id, array $rows, array &$errors ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'aifirst_quotes';
+
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE tool_id = %s", $tool_id ) );
+
+		$inserted = 0;
+		foreach ( $rows as $row ) {
+			$ok = $wpdb->insert(
+				$table,
+				array(
+					'tool_id'     => $tool_id,
+					'order_index' => (int) $row['order_index'],
+					'quote_text'  => (string) $row['quote_text'],
+					'role'        => (string) $row['role'],
+					'created_at'  => current_time( 'mysql' ),
+				),
+				array( '%s', '%d', '%s', '%s', '%s' )
+			);
+			if ( false === $ok ) {
+				$errors[] = sprintf( /* translators: %s: db error */ __( 'quotes insert failed: %s', 'aifirstsaas' ), $wpdb->last_error );
+			} else {
+				++$inserted;
+			}
+		}
+		return $inserted;
+	}
+
+	/**
+	 * Upsert a list of term-meta rows for a taxonomy.
+	 *
+	 * Creates the term if it doesn't exist. Writes to {prefix}aifirst_category_meta
+	 * or {prefix}aifirst_feature_meta depending on the taxonomy.
+	 *
+	 * @since 0.3.0
+	 * @param string   $taxonomy aifirst_category | aifirst_feature.
+	 * @param array[]  $rows     Validated term-meta rows.
+	 * @param string[] $errors   By-ref.
+	 * @return void
+	 */
+	protected function upsert_term_meta( $taxonomy, array $rows, array &$errors ) {
+		global $wpdb;
+
+		$is_category = ( 'aifirst_category' === $taxonomy );
+		$table       = $wpdb->prefix . ( $is_category ? 'aifirst_category_meta' : 'aifirst_feature_meta' );
+
+		foreach ( $rows as $row ) {
+			$term_id = $this->resolve_term_id( $row['term_name'], $row['term_slug'], $taxonomy );
+			if ( 0 === $term_id ) {
+				$errors[] = sprintf(
+					/* translators: 1: taxonomy 2: term name */
+					__( 'Could not resolve %1$s term for term_meta "%2$s".', 'aifirstsaas' ),
+					$taxonomy,
+					$row['term_name']
+				);
+				continue;
+			}
+
+			if ( $is_category ) {
+				$data    = array(
+					'term_id'            => $term_id,
+					'icon'               => (string) $row['icon'],
+					'intro'              => (string) $row['intro'],
+					'what_ai_does_well'  => (string) $row['what_ai_does_well'],
+					'whats_immature'     => (string) $row['whats_immature'],
+					'honest_observation' => (string) $row['honest_observation'],
+					'most_common_ai'     => (string) $row['most_common_ai'],
+					'fastest_growing'    => (string) $row['fastest_growing'],
+					'buyers_checklist'   => (string) $row['buyers_checklist'],
+				);
+				$formats = array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
+			} else {
+				$data    = array(
+					'term_id'               => $term_id,
+					'color'                 => (string) $row['color'],
+					'feature_type'          => (string) $row['feature_type'],
+					'description'           => (string) $row['description'],
+					'why_matters'           => (string) $row['why_matters'],
+					'evaluate'              => (string) $row['evaluate'],
+					'related_features'      => (string) $row['related_features'],
+					'how_it_works_surface'  => (string) $row['how_it_works_surface'],
+					'how_it_works_deeper'   => (string) $row['how_it_works_deeper'],
+					'vendors_dont_tell_you' => (string) $row['vendors_dont_tell_you'],
+					'buyers_checklist'      => (string) $row['buyers_checklist'],
+				);
+				$formats = array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
+			}
+
+			$existing = (int) $wpdb->get_var(
+				$wpdb->prepare( "SELECT " . ( $is_category ? 'cat_meta_id' : 'feat_meta_id' ) . " FROM {$table} WHERE term_id = %d LIMIT 1", $term_id )
+			);
+
+			if ( $existing > 0 ) {
+				$result = $wpdb->update(
+					$table,
+					$data,
+					array( ( $is_category ? 'cat_meta_id' : 'feat_meta_id' ) => $existing ),
+					$formats,
+					array( '%d' )
+				);
+			} else {
+				$result = $wpdb->insert( $table, $data, $formats );
+			}
+
+			if ( false === $result ) {
+				$errors[] = sprintf(
+					/* translators: 1: taxonomy 2: term name */
+					__( '%1$s term_meta write failed for "%2$s".', 'aifirstsaas' ),
+					$taxonomy,
+					$row['term_name']
+				);
+			}
+		}
+	}
+
+	/**
+	 * Find or create a term by name/slug within a taxonomy.
+	 *
+	 * @since 0.3.0
+	 * @param string $name     Human name.
+	 * @param string $slug     Slug.
+	 * @param string $taxonomy Taxonomy slug.
+	 * @return int term_id or 0 on failure.
+	 */
+	protected function resolve_term_id( $name, $slug, $taxonomy ) {
+		if ( '' === $name && '' === $slug ) {
+			return 0;
+		}
+		$lookup = '' !== $name ? $name : $slug;
+		$term   = term_exists( $lookup, $taxonomy );
+		if ( ! $term && '' !== $slug ) {
+			$term = term_exists( $slug, $taxonomy );
+		}
+		if ( ! $term ) {
+			$inserted = wp_insert_term( '' !== $name ? $name : $slug, $taxonomy, '' !== $slug ? array( 'slug' => $slug ) : array() );
+			if ( is_wp_error( $inserted ) ) {
+				return 0;
+			}
+			return (int) $inserted['term_id'];
+		}
+		if ( is_array( $term ) ) {
+			return (int) $term['term_id'];
+		}
+		return 0;
 	}
 }

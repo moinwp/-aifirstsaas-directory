@@ -61,6 +61,9 @@ class AIFirst_Plugin {
 		if ( is_admin() ) {
 			( new AIFirst_Admin() )->register();
 		}
+
+		// Session 3: DB version upgrader.
+		( new AIFirst_Upgrader() )->register();
 	}
 
 	/**

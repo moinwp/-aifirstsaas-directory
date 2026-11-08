@@ -2,6 +2,111 @@
 
 Running log of decisions and open items. Dated entries at the top.
 
+## Session 3 — Design-aligned schema expansion (2026-11-08)
+
+Version bumped to **0.3.0**. Scope: close every schema gap between the plugin and the published design, plus the four tool-shape items pulled forward from Session 4 so the tool contract is now frozen.
+
+### New tables (all `{wpdb->prefix}aifirst_…`)
+
+| Table | Purpose | Key cols |
+|---|---|---|
+| `tool_features` | The rich per-tool feature join. A taxonomy term tags a tool with a feature; this row says *at what plan, status, since when, native or 3rd-party*. | `(tool_id, feature_slug)` unique |
+| `maturity_breakdown` | Per-criterion rows that back the "AI Maturity breakdown" card on the tool page. | `(tool_id, order_index)` |
+| `industries` | Industries served, with a percentage per row. Backs the "Top industries" bars on the tool page. | `(tool_id, order_index)` |
+| `sentiment` | Review-source scores (G2, Capterra, …) with review counts and the deep-link URL. | `(tool_id, source)` unique |
+| `quotes` | Short user quotes with speaker role, for the Sentiment tab. | `(tool_id, order_index)` |
+| `category_meta` | Long-form content for the Category detail page (icon, intro, what AI does well, what's immature, honest observation, most-common AI, fastest-growing, buyer's checklist JSON). | `term_id` unique |
+| `feature_meta` | Long-form content for the Feature detail page (color, universal vs category-specific, description, why it matters, evaluate[], related features[], how it works surface/deeper, vendors-don't-tell-you[], buyer's checklist[]). | `term_id` unique |
+
+### Column changes on existing tables
+
+- **`tool_meta.company_size_smb / _mid / _ent`** — type changed from `TINYINT(1)` boolean to `TINYINT UNSIGNED` percentage (0–100). The three fields together represent the company-size distribution the design renders as horizontal bars.
+- **`tool_meta.company_group_id`** — new `VARCHAR(191) NOT NULL DEFAULT ''` with its own index. A free-form slug (e.g. `atlassian`) shared across sibling tools made by the same company. Backs the "Same company" sidebar block on the tool page.
+- **`cannot_do.workaround`** — new `TEXT NULL`. The design shows a short grey workaround line under every `✗` limitation.
+
+### DB upgrade path
+
+New `AIFirst_Upgrader` class runs on `plugins_loaded` priority 5. It compares the stored `aifirst_db_version` option with the `AIFIRST_DB_VERSION` constant and, if behind, calls `AIFirst_Activator::create_tables()` + `migrate_post_dbdelta()`. Both routines are idempotent: `create_tables()` is pure `dbDelta`, `migrate_post_dbdelta()` issues defensive `ALTER TABLE MODIFY COLUMN` for the three `company_size_*` fields in case dbDelta's type-change path missed them.
+
+This means: from 0.2.0 to 0.3.0, the user does **nothing** — the first admin page load after `git pull` runs the migration. No reactivation required.
+
+### Canonical record contract (0.3.0)
+
+Top-level keys of a record are now:
+
+```
+tool, meta, plans, faq, radar, cannot_do, relationships,
+tool_features, maturity_breakdown, industries, sentiment, quotes,
+category_meta, feature_meta
+```
+
+- `tool.ai_features` (the flat tag list) is still accepted but is **auto-derived from `tool_features`** when both are present — the sanitizer merges the names out of `tool_features` back into `ai_features` so the taxonomy relationship still fires.
+- `meta.company_group_id` — slug-sanitized.
+- `meta.company_size_{smb,mid,ent}` — integers 0–100 (clamped). Formerly 0/1.
+- `meta.expert_take` — upgraded from `sanitize_textarea_field` to `wp_kses_post` so the design's 3-paragraph HTML survives.
+- `cannot_do[].workaround` — new `TEXT`.
+- Radar `change_type` accepts **design labels as aliases** (`"New Feature"`, `"Plan Change"`, `"Removed"`) in addition to the canonical kebab-case (`new-feature`, `pricing-change`, `deprecated`). Storage is always canonical; display re-labels at the frontend.
+- `tool_features[]` entries: `{feature_name, feature_slug (auto), plan (Free|Starter|Pro|Enterprise|Add-on), status (stable|beta|alpha|deprecated|coming-soon), is_native (0|1), since, feature_note}`. Dedup by `feature_slug` — last one wins.
+- `maturity_breakdown[]` entries: `{order_index, criterion, score_display, score_numeric, score_color}`.
+- `industries[]` entries: `{order_index, name, pct}`.
+- `sentiment[]` entries: `{source, score (0–5), review_count, source_url}`.
+- `quotes[]` entries: `{order_index, quote_text, role}`.
+- `category_meta[]` entries: `{term, icon, intro, what_ai_does_well, whats_immature, honest_observation, most_common_ai, fastest_growing, buyers_checklist[]}`. Buyer's checklist is stored as JSON. Terms are created in `aifirst_category` if missing.
+- `feature_meta[]` entries: `{term, color (#RRGGBB), feature_type (universal|category-specific), description, why_matters, evaluate[], related_features[], how_it_works_surface, how_it_works_deeper, vendors_dont_tell_you[], buyers_checklist[]}`. Array fields stored as JSON. Terms are created in `aifirst_feature` if missing.
+
+### Updated CSV header
+
+Add these columns to the end of the Session 2 header:
+
+```
+company_group_id,
+tool_features, maturity_breakdown, industries, sentiment, quotes,
+category_meta, feature_meta
+```
+
+Multi-row cells use the same `||` row / `~` field / `=` key-value syntax as Session 2.
+
+Example `tool_features` cell with two features:
+```
+feature_name=Lead Scoring~plan=Pro~status=stable~is_native=1~since=2023||feature_name=Call Summary~plan=Enterprise~status=beta~is_native=1~since=2026-09
+```
+
+Example `industries` cell:
+```
+name=SaaS~pct=40||name=Agencies~pct=25||name=E-commerce~pct=20||name=Other~pct=15
+```
+
+Example `category_meta` cell (nests a JSON-array via the pipe syntax — the sanitizer accepts arrays, newline strings, or pipe strings):
+```
+term=HR SaaS~icon=👥~what_ai_does_well=Resume parsing...~whats_immature=Bias auditing...~buyers_checklist=Discloses model?|Human review?|Bias audit public?
+```
+
+### Updated AI parse prompt
+
+The system instruction now describes every new top-level key with its field shape. `tool_features` is explicitly flagged as the richer path (plan / status / native / since) and `ai_features` is noted as optional because it gets auto-derived. Percentages for company size and industries are explained (industries sum to ~100). `expert_take` is marked as HTML-allowed.
+
+### Decisions
+
+- **Terms created at intake.** When `tool_features` or `*_meta` references a feature/category by name, the term is created in `aifirst_feature` / `aifirst_category` on the fly. Keeps the intake single-pass; the cost is that typos create one-off terms. Mitigated by a de-dup step (`sanitize_term_list` + `term_exists` resolving by name first, slug second).
+- **No separate tool_groups table.** Per your call. `tool_meta.company_group_id` is a free-form slug. Gives us the "Same company" block without a second join. Downside: no company metadata (website, logo) — the design doesn't show any, so we don't need one yet.
+- **Radar enum stays canonical.** We accept design labels as input aliases but never store them. One canonical set in the DB; display translation happens at the frontend. Keeps queries clean and makes both the admin UI and existing Session 2 data valid.
+- **Term content in dedicated tables, not `wp_termmeta`.** We need schema (indexed `feature_type`, consistent columns) and the freedom to JSON-encode the array fields. `wp_termmeta` works but every read becomes a lookup-by-key. Belt-and-braces: `uniq_term` on `term_id` means only one meta row per term.
+- **Admin repeaters inflate the form.** The Quick Add page now has 10 repeaters. That's a lot to scroll. We accept the cost in Session 3 to lock the contract; in Session 4 we can either collapse sections by default or split the review form into tabs that mirror the Tool detail page's tab bar.
+- **Dedup on tool_features.** Two rows with the same `feature_slug` are collapsed — the last wins. Repeating a feature by accident doesn't break the unique-index insert.
+- **ai_features still works stand-alone.** Users who don't want to fill plan/status/since can keep typing names in the simple "AI features (comma-separated)" field. The structured path is additive.
+
+### Deferred (unchanged from the Session 4+ list, minus the four pulled forward)
+
+Everything else from my earlier Session 4/5 list stays where it is: comparison long-form content, change-report submissions, submission intake, newsletter subscribers, blog (core WP Posts), My Stack view, derived home-page sections.
+
+### Backlog carried from Session 1/2
+
+- Slug-drift migration (`tool_id` rewrites across child tables).
+- Composer autoload.
+- Multisite uninstall loop.
+- Translation `.pot`.
+- CSV preview + chunked import for very large files.
+
 ## Session 2 — Intake + AI parse + CSV + REST (2026-11-07)
 
 Version bumped to **0.2.0**.

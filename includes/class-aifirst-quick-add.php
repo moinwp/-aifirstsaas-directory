@@ -210,12 +210,13 @@ class AIFirst_Quick_Add {
 						<fieldset class="aifirst-section">
 							<legend><?php esc_html_e( 'Audience', 'aifirstsaas' ); ?></legend>
 							<?php
-							$this->field( 'meta.company_size_smb', __( 'SMB', 'aifirstsaas' ), 'checkbox' );
-							$this->field( 'meta.company_size_mid', __( 'Mid-market', 'aifirstsaas' ), 'checkbox' );
-							$this->field( 'meta.company_size_ent', __( 'Enterprise', 'aifirstsaas' ), 'checkbox' );
+							$this->field( 'meta.company_size_smb', __( 'SMB % (0–100)', 'aifirstsaas' ), 'number', array( 'min' => 0, 'max' => 100 ) );
+							$this->field( 'meta.company_size_mid', __( 'Mid-market % (0–100)', 'aifirstsaas' ), 'number', array( 'min' => 0, 'max' => 100 ) );
+							$this->field( 'meta.company_size_ent', __( 'Enterprise % (0–100)', 'aifirstsaas' ), 'number', array( 'min' => 0, 'max' => 100 ) );
+							$this->field( 'meta.company_group_id', __( 'Company group ID (slug)', 'aifirstsaas' ), 'text', array( 'help' => __( 'Share across sibling tools made by the same parent company.', 'aifirstsaas' ) ) );
 							$this->field( 'meta.notable_customers', __( 'Notable customers', 'aifirstsaas' ), 'textarea' );
 							$this->field( 'meta.best_for', __( 'Best for', 'aifirstsaas' ), 'textarea' );
-							$this->field( 'meta.expert_take', __( 'Expert take', 'aifirstsaas' ), 'textarea' );
+							$this->field( 'meta.expert_take', __( 'Expert take (HTML allowed)', 'aifirstsaas' ), 'textarea', array( 'rows' => 6 ) );
 							?>
 						</fieldset>
 
@@ -228,10 +229,15 @@ class AIFirst_Quick_Add {
 							?>
 						</fieldset>
 
+						<?php $this->render_repeater( 'tool_features', __( 'AI features on this tool (plan / status / native)', 'aifirstsaas' ), $this->tool_feature_columns() ); ?>
 						<?php $this->render_repeater( 'plans', __( 'Pricing plans', 'aifirstsaas' ), $this->plan_columns() ); ?>
+						<?php $this->render_repeater( 'maturity_breakdown', __( 'AI Maturity breakdown', 'aifirstsaas' ), $this->maturity_columns() ); ?>
 						<?php $this->render_repeater( 'faq', __( 'FAQ', 'aifirstsaas' ), $this->faq_columns() ); ?>
 						<?php $this->render_repeater( 'radar', __( 'AI Radar entries', 'aifirstsaas' ), $this->radar_columns() ); ?>
 						<?php $this->render_repeater( 'cannot_do', __( 'Cannot-do (limitations)', 'aifirstsaas' ), $this->cannot_columns() ); ?>
+						<?php $this->render_repeater( 'industries', __( 'Industries served (%)', 'aifirstsaas' ), $this->industries_columns() ); ?>
+						<?php $this->render_repeater( 'sentiment', __( 'Review sources / sentiment', 'aifirstsaas' ), $this->sentiment_columns() ); ?>
+						<?php $this->render_repeater( 'quotes', __( 'User quotes', 'aifirstsaas' ), $this->quotes_columns() ); ?>
 						<?php $this->render_repeater( 'relationships', __( 'Relationships', 'aifirstsaas' ), $this->rel_columns() ); ?>
 
 						<p class="aifirst-actions">
@@ -346,6 +352,108 @@ class AIFirst_Quick_Add {
 		return array(
 			array( 'key' => 'order_index', 'label' => __( 'Order', 'aifirstsaas' ), 'type' => 'number' ),
 			array( 'key' => 'limitation_text', 'label' => __( 'Limitation', 'aifirstsaas' ), 'type' => 'textarea' ),
+			array( 'key' => 'workaround', 'label' => __( 'Workaround', 'aifirstsaas' ), 'type' => 'textarea' ),
+		);
+	}
+
+	/**
+	 * Columns for the tool_features repeater.
+	 *
+	 * @since 0.3.0
+	 * @return array
+	 */
+	protected function tool_feature_columns() {
+		return array(
+			array( 'key' => 'feature_name', 'label' => __( 'Feature name', 'aifirstsaas' ), 'type' => 'text' ),
+			array( 'key' => 'feature_slug', 'label' => __( 'Slug (optional)', 'aifirstsaas' ), 'type' => 'text' ),
+			array(
+				'key'     => 'plan',
+				'label'   => __( 'Plan', 'aifirstsaas' ),
+				'type'    => 'select',
+				'options' => array(
+					''           => '—',
+					'Free'       => 'Free',
+					'Starter'    => 'Starter',
+					'Pro'        => 'Pro',
+					'Enterprise' => 'Enterprise',
+					'Add-on'     => 'Add-on',
+				),
+			),
+			array(
+				'key'     => 'status',
+				'label'   => __( 'Status', 'aifirstsaas' ),
+				'type'    => 'select',
+				'options' => array(
+					''            => '—',
+					'stable'      => 'stable',
+					'beta'        => 'beta',
+					'alpha'       => 'alpha',
+					'deprecated'  => 'deprecated',
+					'coming-soon' => 'coming-soon',
+				),
+			),
+			array( 'key' => 'is_native', 'label' => __( 'Native?', 'aifirstsaas' ), 'type' => 'checkbox' ),
+			array( 'key' => 'since', 'label' => __( 'Since', 'aifirstsaas' ), 'type' => 'text' ),
+			array( 'key' => 'feature_note', 'label' => __( 'Note', 'aifirstsaas' ), 'type' => 'text' ),
+		);
+	}
+
+	/**
+	 * Columns for the maturity_breakdown repeater.
+	 *
+	 * @since 0.3.0
+	 * @return array
+	 */
+	protected function maturity_columns() {
+		return array(
+			array( 'key' => 'order_index', 'label' => __( 'Order', 'aifirstsaas' ), 'type' => 'number' ),
+			array( 'key' => 'criterion', 'label' => __( 'Criterion', 'aifirstsaas' ), 'type' => 'text' ),
+			array( 'key' => 'score_display', 'label' => __( 'Display (e.g. 2/2)', 'aifirstsaas' ), 'type' => 'text' ),
+			array( 'key' => 'score_numeric', 'label' => __( 'Numeric', 'aifirstsaas' ), 'type' => 'number', 'step' => '0.01' ),
+			array( 'key' => 'score_color', 'label' => __( 'Color (green|amber|red|#hex)', 'aifirstsaas' ), 'type' => 'text' ),
+		);
+	}
+
+	/**
+	 * Columns for the industries repeater.
+	 *
+	 * @since 0.3.0
+	 * @return array
+	 */
+	protected function industries_columns() {
+		return array(
+			array( 'key' => 'order_index', 'label' => __( 'Order', 'aifirstsaas' ), 'type' => 'number' ),
+			array( 'key' => 'name', 'label' => __( 'Industry', 'aifirstsaas' ), 'type' => 'text' ),
+			array( 'key' => 'pct', 'label' => __( 'Percent', 'aifirstsaas' ), 'type' => 'number', 'min' => 0, 'max' => 100 ),
+		);
+	}
+
+	/**
+	 * Columns for the sentiment repeater.
+	 *
+	 * @since 0.3.0
+	 * @return array
+	 */
+	protected function sentiment_columns() {
+		return array(
+			array( 'key' => 'source', 'label' => __( 'Source (G2 / Capterra / …)', 'aifirstsaas' ), 'type' => 'text' ),
+			array( 'key' => 'score', 'label' => __( 'Score (0–5)', 'aifirstsaas' ), 'type' => 'number', 'step' => '0.1' ),
+			array( 'key' => 'review_count', 'label' => __( 'Review count', 'aifirstsaas' ), 'type' => 'number' ),
+			array( 'key' => 'source_url', 'label' => __( 'URL', 'aifirstsaas' ), 'type' => 'url' ),
+		);
+	}
+
+	/**
+	 * Columns for the quotes repeater.
+	 *
+	 * @since 0.3.0
+	 * @return array
+	 */
+	protected function quotes_columns() {
+		return array(
+			array( 'key' => 'order_index', 'label' => __( 'Order', 'aifirstsaas' ), 'type' => 'number' ),
+			array( 'key' => 'quote_text', 'label' => __( 'Quote', 'aifirstsaas' ), 'type' => 'textarea' ),
+			array( 'key' => 'role', 'label' => __( 'Role / context', 'aifirstsaas' ), 'type' => 'text' ),
 		);
 	}
 

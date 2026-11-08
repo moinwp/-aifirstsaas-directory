@@ -4,7 +4,7 @@ Data and presentation layer for [aifirstsaas.com](https://aifirstsaas.com) — a
 
 ## Status
 
-**Version 0.2.0** — Session 2 complete. The plugin:
+**Version 0.3.0** — Session 3 complete. The plugin:
 
 - Activates cleanly and creates 6 custom tables via `dbDelta()`
 - Registers the `aifirst_tool` CPT (public slug: `tools`), `aifirst_category`, and `aifirst_feature`
@@ -14,6 +14,8 @@ Data and presentation layer for [aifirstsaas.com](https://aifirstsaas.com) — a
   - **Paste & Parse** — paste text, parse with AI, review structured draft, save
   - **Bulk CSV import** — upload many tools at once, no AI required
 - Adds a **Settings** page for the AI provider (Anthropic / OpenAI), model, and API key, plus a Test Connection button
+
+Session 3 adds 7 new tables (`tool_features`, `maturity_breakdown`, `industries`, `sentiment`, `quotes`, `category_meta`, `feature_meta`), changes `company_size_{smb,mid,ent}` from booleans to percentages, adds `company_group_id` to `tool_meta`, and adds a `workaround` column to `cannot_do`. Upgrade from 0.2.0 → 0.3.0 is automatic on the next admin page load — no reactivation.
 
 Not yet built: frontend templates, CSS/JS for the public site, additional REST endpoints, child theme, MCP adapter.
 

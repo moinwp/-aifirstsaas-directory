@@ -1,6 +1,10 @@
 <?php
 /**
- * Activation handler — creates custom tables via dbDelta().
+ * Activation handler — creates/migrates custom tables via dbDelta().
+ *
+ * create_tables() is idempotent and runs on both activation and version-bump
+ * upgrades (see AIFirst_Upgrader). Non-dbDelta migrations (column type
+ * changes) live in migrate_post_dbdelta().
  *
  * @package AIFirst
  * @since   0.1.0
@@ -23,11 +27,11 @@ class AIFirst_Activator {
 	 */
 	public static function activate() {
 		self::create_tables();
+		self::migrate_post_dbdelta();
 
 		update_option( 'aifirst_db_version', AIFIRST_DB_VERSION );
 		update_option( 'aifirst_show_activation_notice', 1 );
 
-		// Ensure CPT + taxonomy rewrite rules are registered before flushing.
 		require_once AIFIRST_INCLUDES_DIR . 'class-aifirst-post-types.php';
 		require_once AIFIRST_INCLUDES_DIR . 'class-aifirst-taxonomies.php';
 		( new AIFirst_Post_Types() )->register();
@@ -37,12 +41,12 @@ class AIFirst_Activator {
 	}
 
 	/**
-	 * Create all 6 custom tables.
+	 * Create (or upgrade) every custom table. Idempotent.
 	 *
 	 * @since 0.1.0
 	 * @return void
 	 */
-	protected static function create_tables() {
+	public static function create_tables() {
 		global $wpdb;
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -79,9 +83,10 @@ class AIFirst_Activator {
 			thirdparty_ai_count SMALLINT UNSIGNED NOT NULL DEFAULT 0,
 			last_ai_update DATE NULL,
 			last_verified DATE NULL,
-			company_size_smb TINYINT(1) NOT NULL DEFAULT 0,
-			company_size_mid TINYINT(1) NOT NULL DEFAULT 0,
-			company_size_ent TINYINT(1) NOT NULL DEFAULT 0,
+			company_size_smb TINYINT UNSIGNED NOT NULL DEFAULT 0,
+			company_size_mid TINYINT UNSIGNED NOT NULL DEFAULT 0,
+			company_size_ent TINYINT UNSIGNED NOT NULL DEFAULT 0,
+			company_group_id VARCHAR(191) NOT NULL DEFAULT '',
 			notable_customers TEXT NULL,
 			best_for TEXT NULL,
 			expert_take TEXT NULL,
@@ -97,7 +102,8 @@ class AIFirst_Activator {
 			KEY idx_has_free_plan (has_free_plan),
 			KEY idx_ai_maturity (ai_maturity_score),
 			KEY idx_ai_type (ai_type),
-			KEY idx_last_verified (last_verified)
+			KEY idx_last_verified (last_verified),
+			KEY idx_company_group (company_group_id)
 		) {$charset_collate};";
 
 		$sql[] = "CREATE TABLE {$prefix}plans (
@@ -154,6 +160,7 @@ class AIFirst_Activator {
 			tool_id VARCHAR(191) NOT NULL,
 			order_index TINYINT UNSIGNED NOT NULL DEFAULT 1,
 			limitation_text TEXT NOT NULL,
+			workaround TEXT NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY  (cannot_id),
 			KEY idx_tool (tool_id, order_index)
@@ -172,8 +179,135 @@ class AIFirst_Activator {
 			KEY idx_target (target_tool_id, relationship_type)
 		) {$charset_collate};";
 
+		// --- 0.3.0 new tables ---
+
+		$sql[] = "CREATE TABLE {$prefix}tool_features (
+			feature_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			tool_id VARCHAR(191) NOT NULL,
+			feature_slug VARCHAR(191) NOT NULL,
+			feature_name VARCHAR(255) NOT NULL DEFAULT '',
+			plan VARCHAR(50) NOT NULL DEFAULT '',
+			status VARCHAR(20) NOT NULL DEFAULT '',
+			is_native TINYINT(1) NOT NULL DEFAULT 1,
+			since VARCHAR(20) NOT NULL DEFAULT '',
+			feature_note VARCHAR(500) NOT NULL DEFAULT '',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (feature_id),
+			UNIQUE KEY uniq_tool_feature (tool_id, feature_slug),
+			KEY idx_feature (feature_slug),
+			KEY idx_status (status),
+			KEY idx_plan (plan)
+		) {$charset_collate};";
+
+		$sql[] = "CREATE TABLE {$prefix}maturity_breakdown (
+			breakdown_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			tool_id VARCHAR(191) NOT NULL,
+			order_index TINYINT UNSIGNED NOT NULL DEFAULT 1,
+			criterion VARCHAR(100) NOT NULL,
+			score_display VARCHAR(20) NOT NULL DEFAULT '',
+			score_numeric DECIMAL(5,2) NULL,
+			score_color VARCHAR(20) NOT NULL DEFAULT '',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (breakdown_id),
+			KEY idx_tool (tool_id, order_index)
+		) {$charset_collate};";
+
+		$sql[] = "CREATE TABLE {$prefix}industries (
+			industry_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			tool_id VARCHAR(191) NOT NULL,
+			order_index TINYINT UNSIGNED NOT NULL DEFAULT 1,
+			name VARCHAR(100) NOT NULL,
+			pct TINYINT UNSIGNED NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (industry_id),
+			KEY idx_tool (tool_id, order_index)
+		) {$charset_collate};";
+
+		$sql[] = "CREATE TABLE {$prefix}sentiment (
+			sentiment_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			tool_id VARCHAR(191) NOT NULL,
+			source VARCHAR(50) NOT NULL,
+			score DECIMAL(3,2) NULL,
+			review_count INT UNSIGNED NOT NULL DEFAULT 0,
+			source_url VARCHAR(500) NOT NULL DEFAULT '',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (sentiment_id),
+			UNIQUE KEY uniq_tool_source (tool_id, source),
+			KEY idx_tool (tool_id)
+		) {$charset_collate};";
+
+		$sql[] = "CREATE TABLE {$prefix}quotes (
+			quote_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			tool_id VARCHAR(191) NOT NULL,
+			order_index TINYINT UNSIGNED NOT NULL DEFAULT 1,
+			quote_text TEXT NOT NULL,
+			role VARCHAR(100) NOT NULL DEFAULT '',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (quote_id),
+			KEY idx_tool (tool_id, order_index)
+		) {$charset_collate};";
+
+		$sql[] = "CREATE TABLE {$prefix}category_meta (
+			cat_meta_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			term_id BIGINT UNSIGNED NOT NULL,
+			icon VARCHAR(20) NOT NULL DEFAULT '',
+			intro TEXT NULL,
+			what_ai_does_well TEXT NULL,
+			whats_immature TEXT NULL,
+			honest_observation TEXT NULL,
+			most_common_ai VARCHAR(255) NOT NULL DEFAULT '',
+			fastest_growing VARCHAR(255) NOT NULL DEFAULT '',
+			buyers_checklist TEXT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY  (cat_meta_id),
+			UNIQUE KEY uniq_term (term_id)
+		) {$charset_collate};";
+
+		$sql[] = "CREATE TABLE {$prefix}feature_meta (
+			feat_meta_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			term_id BIGINT UNSIGNED NOT NULL,
+			color VARCHAR(7) NOT NULL DEFAULT '',
+			feature_type VARCHAR(30) NOT NULL DEFAULT '',
+			description TEXT NULL,
+			why_matters TEXT NULL,
+			evaluate TEXT NULL,
+			related_features TEXT NULL,
+			how_it_works_surface TEXT NULL,
+			how_it_works_deeper TEXT NULL,
+			vendors_dont_tell_you TEXT NULL,
+			buyers_checklist TEXT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY  (feat_meta_id),
+			UNIQUE KEY uniq_term (term_id),
+			KEY idx_type (feature_type)
+		) {$charset_collate};";
+
 		foreach ( $sql as $statement ) {
 			dbDelta( $statement );
+		}
+	}
+
+	/**
+	 * Follow-up migrations that dbDelta can't reliably do on its own.
+	 *
+	 * @since 0.3.0
+	 * @return void
+	 */
+	public static function migrate_post_dbdelta() {
+		global $wpdb;
+		$tool_meta = $wpdb->prefix . 'aifirst_tool_meta';
+
+		// company_size_* flipped from boolean (TINYINT(1)) to percentage
+		// (TINYINT UNSIGNED 0-100). dbDelta usually catches the type change,
+		// but we also widen explicitly in case an older schema snapshot kept
+		// a tight display width. This is idempotent.
+		$cols = array( 'company_size_smb', 'company_size_mid', 'company_size_ent' );
+		foreach ( $cols as $col ) {
+			$col_safe = preg_replace( '/[^a-z_0-9]/i', '', $col );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$tool_meta} MODIFY COLUMN `{$col_safe}` TINYINT UNSIGNED NOT NULL DEFAULT 0" );
 		}
 	}
 }
