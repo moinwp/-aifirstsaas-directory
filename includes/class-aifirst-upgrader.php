@@ -47,6 +47,10 @@ class AIFirst_Upgrader {
 		AIFirst_Activator::create_tables();
 		AIFirst_Activator::migrate_post_dbdelta();
 
+		// New rewrite rules landed in 0.4.0 — schedule a one-shot flush on
+		// the next request so they bind without requiring reactivation.
+		update_option( 'aifirst_needs_rewrite_flush', 1 );
+
 		update_option( self::OPTION, AIFIRST_DB_VERSION );
 	}
 }

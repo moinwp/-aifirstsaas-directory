@@ -2,6 +2,96 @@
 
 Running log of decisions and open items. Dated entries at the top.
 
+## Session 4 — Public frontend (2026-11-08)
+
+Version bumped to **0.4.0**. Every page in the design now renders from the plugin.
+
+### What shipped
+
+| Route | Template | Data it reads |
+|---|---|---|
+| `/` (opt-in) | `front-page.php` | counters, radar last 14 d, leaderboard, universal features, home FAQ |
+| `/tools/` | `archive-aifirst_tool.php` | CPT archive with filter sidebar + A–Z jumper |
+| `/tools/:slug/` | `single-aifirst_tool.php` | tool_meta + 6 child tables + relationships + same-company siblings |
+| `/categories/:slug/` | `taxonomy-aifirst_category.php` | category_meta + CPT list + radar sidebar |
+| `/features/` | `features-index.php` | aifirst_feature grouped by `feature_meta.feature_type` |
+| `/ai-features/:slug/` | `taxonomy-aifirst_feature.php` | feature_meta + tools_with_feature + tools_without_feature |
+| `/changelog/` | `changelog.php` | radar table with tool/type/period filters + subscribe |
+| `/compare/:a/:b/:c?` | `compare.php` | metric matrix + feature matrix across up to three tools |
+| `/submit/` | `submit.php` | two-tab form posting to `admin-post.php` → `aifirst_submissions` |
+| Overlay | `single-aifirst_tool.php` modal | form posting to `admin-post.php` → `aifirst_reports` |
+
+Templates live in `templates/public/`. Themes override by placing a file at `theme/aifirst/<same-filename>` — the dispatcher checks `locate_template()` before falling back to the plugin copy.
+
+### New plumbing
+
+- `AIFirst_Public` — registers the four pretty-URL rewrites (`/changelog/`, `/submit/`, `/compare/*`, `/features/`), four query vars (`aifirst_page`, `aifirst_cmp_a/b/c`), the `template_include` filter, and conditional asset enqueue (only on plugin-owned screens).
+- `AIFirst_Query` — every read-side SQL call the templates need, in one place. Each method takes a plain argument and returns rows; no inline `$wpdb->prepare()` in templates.
+- `AIFirst_Components` — reusable render functions. Public API: `maturity_bars()`, `free_ai_badge()`, `plan_pill()`, `category_pill()`, `tool_card()`, `faq_block()`, `avatar()`, `breadcrumbs()`, `newsletter_form()`, `report_modal_trigger()`, `date_display()`.
+- `AIFirst_Submissions` — processes the `/submit/` form. Writes to the new `aifirst_submissions` table; nonce + honeypot + 60-s-per-IP throttle.
+- `AIFirst_Reports` — processes the Report-a-change modal on tool pages. Writes to the new `aifirst_reports` table with the same security envelope.
+
+### Template override pattern
+
+```
+# plugin ships
+wp-content/plugins/aifirstsaas-directory/templates/public/single-aifirst_tool.php
+
+# theme can override by placing
+wp-content/themes/my-theme/aifirst/single-aifirst_tool.php
+```
+
+`template_include` consults `locate_template( array( 'aifirst/<basename>' ) )` first and falls back to the plugin copy. Overrides work on any theme (classic or block) because the dispatcher returns a template path — WordPress still renders it inside the current theme's `get_header()` / `get_footer()`.
+
+### New tables
+
+| Table | Purpose |
+|---|---|
+| `aifirst_submissions` | New-tool / update-existing form submissions. `(kind, tool_id, body JSON, email, status, source_ip, created_at)` — indexed on `status, created_at` and `tool_id`. |
+| `aifirst_reports` | Change-report modal entries. `(tool_id, kind, body, email, status, source_ip, created_at)` — indexed on `(tool_id, created_at)` and `status`. |
+
+Both carry an IP for abuse review. Neither exposes any admin UI yet — Session 5 will add a moderation screen.
+
+### Front page is opt-in
+
+The dispatcher only intercepts the home page when `get_option( 'aifirst_own_home' )` is truthy. Otherwise the theme's home runs as-is. To enable: in wp-admin, `Tools → All Tools → …` isn't the right place yet — for now flip the option directly:
+
+```bash
+wp option update aifirst_own_home 1
+```
+
+A proper toggle on the Settings page lands in Session 5.
+
+### Rewrite flush
+
+The 0.3.0 upgrader now also stores an `aifirst_needs_rewrite_flush = 1` flag, which `AIFirst_Public::maybe_flush_rewrites()` consumes on the next `init` (priority 99) and clears. One extra flush per upgrade. After that the new `/compare/`, `/submit/`, `/changelog/`, `/features/` rules are bound.
+
+### Assets
+
+- `assets/css/public.css` — tokens (`--aif-bg`, `--aif-bg2`, `--aif-card`, `--aif-border`, `--aif-text`, `--aif-sub`, `--aif-accent`, plus `--aif-good/warn/bad`), both light and dark via `prefers-color-scheme` **and** an explicit `data-theme="dark|light"` override. Component styles for every reusable piece. Mobile breakpoints at 1100/960/720/600.
+- `assets/js/public.js` — tiny companion to Alpine: clears URL flash params after 3s and provides `AIFirstGoCompare( a, b, c )` for the compare selector.
+- `alpinejs@3.14.1` loaded from `cdn.jsdelivr.net` with `defer`. No build step, no React.
+
+### Decisions
+
+- **Dispatcher, not the WP template hierarchy, decides routing.** `template_include` short-circuits with a plugin file for our screens, so themes don't need to know about the CPT/taxonomy. Themes that want to override still can — the override check runs first.
+- **Taxonomy slug stays at `ai-features`.** Changing it to `features` would collide with the `/features/` index rewrite. The design calls the top-level section "AI Features" and hits `/features/` for the index; the detail pages live under `/ai-features/<slug>/`. Documented here so later sessions don't try to "fix" it.
+- **Compare is query-driven in Session 4.** No curated comparison CPT yet. The page renders a metric matrix + the union of features across the picked tools. Curated long-form comparison pages (and the home "Trending Comparisons" list) land in Session 5.
+- **Alpine for interactivity.** Zero build chain, CDN-loaded, defer-attributed. Used by: tool-page tab bar, FAQ accordion, report modal, submit-form tab toggle. Any filter today is POST-to-GET form submit — good enough for the current scale (dataset is small, and server rendering keeps crawlable URLs).
+- **Submissions and reports are public forms.** Bound to nonces + honeypot + IP throttle; no capability check (otherwise logged-out visitors couldn't submit). The REST write path (`POST /aifirst/v1/tool`) stays `manage_options`-only and is untouched.
+- **`aifirst_own_home` guards the homepage.** On a site where the directory is the whole site, the plugin owns `/`. On a site where the plugin lives inside a bigger brand, the theme's home still runs. One line to flip.
+- **No shortcode this session.** The front-page template handles the home. If a shortcode is needed for mid-page composition in Session 5 we can wrap the same components — they're all callable statics.
+
+### Backlog for Session 5
+
+- Admin moderation screens for submissions + reports (list, approve, reject, archive).
+- Curated comparison CPT with long-form "What This Comparison Actually Means" copy + related comparisons.
+- Blog using core WP Posts with a `blog_category` taxonomy and an `aifirst_related_tools` post meta.
+- My Stack derived view (depends on richer feature data per tool).
+- Newsletter subscriber persistence (currently the form fires but doesn't save).
+- Settings-page toggle for `aifirst_own_home`.
+- Full-text search / indexed search for tools + features + categories.
+
 ## Session 3 — Design-aligned schema expansion (2026-11-08)
 
 Version bumped to **0.3.0**. Scope: close every schema gap between the plugin and the published design, plus the four tool-shape items pulled forward from Session 4 so the tool contract is now frozen.

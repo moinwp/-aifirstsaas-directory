@@ -64,6 +64,11 @@ class AIFirst_Plugin {
 
 		// Session 3: DB version upgrader.
 		( new AIFirst_Upgrader() )->register();
+
+		// Session 4: public frontend + public form handlers.
+		( new AIFirst_Public() )->register();
+		( new AIFirst_Submissions() )->register();
+		( new AIFirst_Reports() )->register();
 	}
 
 	/**

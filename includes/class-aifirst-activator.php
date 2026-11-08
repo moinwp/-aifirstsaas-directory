@@ -34,8 +34,10 @@ class AIFirst_Activator {
 
 		require_once AIFIRST_INCLUDES_DIR . 'class-aifirst-post-types.php';
 		require_once AIFIRST_INCLUDES_DIR . 'class-aifirst-taxonomies.php';
+		require_once AIFIRST_INCLUDES_DIR . 'class-aifirst-public.php';
 		( new AIFirst_Post_Types() )->register();
 		( new AIFirst_Taxonomies() )->register();
+		( new AIFirst_Public() )->add_rewrites();
 
 		flush_rewrite_rules();
 	}
@@ -262,6 +264,34 @@ class AIFirst_Activator {
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			PRIMARY KEY  (cat_meta_id),
 			UNIQUE KEY uniq_term (term_id)
+		) {$charset_collate};";
+
+		$sql[] = "CREATE TABLE {$prefix}submissions (
+			submission_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			kind VARCHAR(10) NOT NULL DEFAULT 'new',
+			tool_id VARCHAR(191) NOT NULL DEFAULT '',
+			body LONGTEXT NULL,
+			email VARCHAR(190) NOT NULL DEFAULT '',
+			status VARCHAR(20) NOT NULL DEFAULT 'pending',
+			source_ip VARCHAR(45) NOT NULL DEFAULT '',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (submission_id),
+			KEY idx_status (status, created_at),
+			KEY idx_tool (tool_id)
+		) {$charset_collate};";
+
+		$sql[] = "CREATE TABLE {$prefix}reports (
+			report_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			tool_id VARCHAR(191) NOT NULL,
+			kind VARCHAR(60) NOT NULL DEFAULT '',
+			body TEXT NOT NULL,
+			email VARCHAR(190) NOT NULL DEFAULT '',
+			status VARCHAR(20) NOT NULL DEFAULT 'pending',
+			source_ip VARCHAR(45) NOT NULL DEFAULT '',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (report_id),
+			KEY idx_tool (tool_id, created_at),
+			KEY idx_status (status)
 		) {$charset_collate};";
 
 		$sql[] = "CREATE TABLE {$prefix}feature_meta (
