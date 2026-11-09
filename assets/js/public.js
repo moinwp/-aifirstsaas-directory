@@ -24,6 +24,27 @@
 		// older browsers — ignore.
 	}
 
+	/**
+	 * Fire a transient toast in the bottom-right corner.
+	 *
+	 * @since 0.4.1
+	 * @param {string} message - Already-escaped plain text to display.
+	 */
+	window.AIFirstToast = function ( message ) {
+		var el = document.createElement( 'div' );
+		el.className = 'aifirst-toast';
+		el.setAttribute( 'role', 'status' );
+		el.textContent = String( message || '' );
+		document.body.appendChild( el );
+		// force reflow so the transition kicks in
+		void el.offsetWidth;
+		el.classList.add( 'is-visible' );
+		setTimeout( function () {
+			el.classList.remove( 'is-visible' );
+			setTimeout( function () { el.remove(); }, 220 );
+		}, 3600 );
+	};
+
 	// Small helper for the Compare page's selector submit.
 	window.AIFirstGoCompare = function ( a, b, c ) {
 		if ( ! window.AIFirstPublic ) return;

@@ -141,7 +141,24 @@ class AIFirst_Components {
 	 */
 	public static function tool_card( $post, $meta ) {
 		$cats = get_the_terms( $post->ID, 'aifirst_category' );
-		$cat  = ( $cats && ! is_wp_error( $cats ) ) ? $cats[0] : null;
+		$cats = ( $cats && ! is_wp_error( $cats ) ) ? $cats : array();
+		$cat  = ! empty( $cats ) ? $cats[0] : null;
+
+		// On a category archive, surface the category the viewer is looking at
+		// (if this tool is in it). Avoids every card showing the alphabetically
+		// first category regardless of the page we are rendering.
+		// @since 0.4.1
+		if ( is_tax( 'aifirst_category' ) ) {
+			$current = get_queried_object();
+			if ( $current instanceof WP_Term ) {
+				foreach ( $cats as $t ) {
+					if ( (int) $t->term_id === (int) $current->term_id ) {
+						$cat = $t;
+						break;
+					}
+				}
+			}
+		}
 
 		echo '<a class="aifirst-tool-card" href="' . esc_url( get_permalink( $post ) ) . '">';
 		self::avatar( $post->ID, $meta ? $meta->initials : '', $meta ? $meta->avatar_color : '', 38 );
@@ -263,9 +280,44 @@ class AIFirst_Components {
 	 * @return void
 	 */
 	public static function report_modal_trigger( $tool_id ) {
-		$tool_id = (string) $tool_id;
+		$tool_id  = (string) $tool_id;
+		$ajax_url = admin_url( 'admin-ajax.php' );
 		?>
-		<div x-data="{ open: false, sent: false }" class="aifirst-report">
+		<div class="aifirst-report"
+			x-data="{
+				open: false,
+				busy: false,
+				error: '',
+				async submit( e ) {
+					if ( this.busy ) return;
+					this.busy  = true;
+					this.error = '';
+					try {
+						const fd  = new FormData( e.target );
+						fd.append( 'action', 'aifirst_submit_report' );
+						const res = await fetch( <?php echo wp_json_encode( esc_url_raw( $ajax_url ) ); ?>, {
+							method: 'POST',
+							credentials: 'same-origin',
+							body: fd,
+						} );
+						const data = await res.json().catch( () => null );
+						if ( ! res.ok || ! data || ! data.success ) {
+							this.error = ( data && data.data && data.data.message ) ? data.data.message : <?php echo wp_json_encode( esc_html__( 'Something went wrong. Please try again.', 'aifirstsaas' ) ); ?>;
+							this.busy = false;
+							return;
+						}
+						this.open  = false;
+						this.busy  = false;
+						e.target.reset();
+						if ( window.AIFirstToast ) {
+							window.AIFirstToast( data.data && data.data.message ? data.data.message : <?php echo wp_json_encode( esc_html__( 'Thanks — your report was recorded.', 'aifirstsaas' ) ); ?> );
+						}
+					} catch ( err ) {
+						this.error = <?php echo wp_json_encode( esc_html__( 'Network error. Please try again.', 'aifirstsaas' ) ); ?>;
+						this.busy  = false;
+					}
+				}
+			}">
 			<button type="button" class="aifirst-report__trigger" @click="open = true">
 				<?php esc_html_e( 'Report a change', 'aifirstsaas' ); ?>
 			</button>
@@ -273,45 +325,38 @@ class AIFirst_Components {
 			<div class="aifirst-modal" x-show="open" x-cloak @keydown.escape.window="open = false">
 				<div class="aifirst-modal__backdrop" @click="open = false"></div>
 				<div class="aifirst-modal__dialog" role="dialog" aria-modal="true">
-					<template x-if="!sent">
-						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
-							@submit="sent = true">
-							<input type="hidden" name="action" value="aifirst_submit_report" />
-							<input type="hidden" name="tool_id" value="<?php echo esc_attr( $tool_id ); ?>" />
-							<?php wp_nonce_field( 'aifirst_report_' . $tool_id, 'aifirst_report_nonce' ); ?>
-							<p><input type="text" name="hp" value="" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;" aria-hidden="true" /></p>
-							<h2><?php esc_html_e( 'Report a change', 'aifirstsaas' ); ?></h2>
-							<label>
-								<span><?php esc_html_e( 'What needs fixing?', 'aifirstsaas' ); ?></span>
-								<select name="kind" required>
-									<option value="incorrect-maturity"><?php esc_html_e( 'Incorrect maturity score', 'aifirstsaas' ); ?></option>
-									<option value="feature-missing"><?php esc_html_e( 'Feature missing', 'aifirstsaas' ); ?></option>
-									<option value="feature-removed"><?php esc_html_e( 'Feature removed', 'aifirstsaas' ); ?></option>
-									<option value="pricing-changed"><?php esc_html_e( 'Plan / pricing changed', 'aifirstsaas' ); ?></option>
-									<option value="other"><?php esc_html_e( 'Other', 'aifirstsaas' ); ?></option>
-								</select>
-							</label>
-							<label>
-								<span><?php esc_html_e( 'Details', 'aifirstsaas' ); ?></span>
-								<textarea name="body" rows="4" required maxlength="2000"></textarea>
-							</label>
-							<label>
-								<span><?php esc_html_e( 'Your email (optional)', 'aifirstsaas' ); ?></span>
-								<input type="email" name="email" maxlength="190" />
-							</label>
-							<div class="aifirst-modal__actions">
-								<button type="button" @click="open = false" class="aifirst-btn aifirst-btn--ghost"><?php esc_html_e( 'Cancel', 'aifirstsaas' ); ?></button>
-								<button type="submit" class="aifirst-btn aifirst-btn--primary"><?php esc_html_e( 'Send report', 'aifirstsaas' ); ?></button>
-							</div>
-						</form>
-					</template>
-					<template x-if="sent">
-						<div class="aifirst-modal__sent">
-							<div class="aifirst-modal__check">✓</div>
-							<p><?php esc_html_e( 'Thanks — we\'ll review this shortly.', 'aifirstsaas' ); ?></p>
-							<button type="button" @click="open = false; sent = false" class="aifirst-btn"><?php esc_html_e( 'Close', 'aifirstsaas' ); ?></button>
+					<form @submit.prevent="submit($event)" novalidate>
+						<input type="hidden" name="tool_id" value="<?php echo esc_attr( $tool_id ); ?>" />
+						<?php wp_nonce_field( 'aifirst_report_' . $tool_id, 'aifirst_report_nonce' ); ?>
+						<p><input type="text" name="hp" value="" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;" aria-hidden="true" /></p>
+						<h2><?php esc_html_e( 'Report a change', 'aifirstsaas' ); ?></h2>
+						<label>
+							<span><?php esc_html_e( 'What needs fixing?', 'aifirstsaas' ); ?></span>
+							<select name="kind" required>
+								<option value="wrong_info"><?php esc_html_e( 'Wrong info', 'aifirstsaas' ); ?></option>
+								<option value="pricing_changed"><?php esc_html_e( 'Pricing changed', 'aifirstsaas' ); ?></option>
+								<option value="feature_added"><?php esc_html_e( 'Feature added', 'aifirstsaas' ); ?></option>
+								<option value="feature_removed"><?php esc_html_e( 'Feature removed', 'aifirstsaas' ); ?></option>
+								<option value="other"><?php esc_html_e( 'Other', 'aifirstsaas' ); ?></option>
+							</select>
+						</label>
+						<label>
+							<span><?php esc_html_e( 'Details', 'aifirstsaas' ); ?></span>
+							<textarea name="body" rows="4" required maxlength="2000"></textarea>
+						</label>
+						<label>
+							<span><?php esc_html_e( 'Your email (optional)', 'aifirstsaas' ); ?></span>
+							<input type="email" name="email" maxlength="190" />
+						</label>
+						<p class="aifirst-modal__error" x-show="error" x-text="error" x-cloak></p>
+						<div class="aifirst-modal__actions">
+							<button type="button" @click="open = false" class="aifirst-btn aifirst-btn--ghost"><?php esc_html_e( 'Cancel', 'aifirstsaas' ); ?></button>
+							<button type="submit" class="aifirst-btn aifirst-btn--primary" :disabled="busy">
+								<span x-show="!busy"><?php esc_html_e( 'Send report', 'aifirstsaas' ); ?></span>
+								<span x-show="busy" x-cloak><?php esc_html_e( 'Sending…', 'aifirstsaas' ); ?></span>
+							</button>
 						</div>
-					</template>
+					</form>
 				</div>
 			</div>
 		</div>

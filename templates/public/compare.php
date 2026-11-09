@@ -47,11 +47,35 @@ $b = $load( $slug_b );
 $c = $load( $slug_c );
 
 /**
- * Collect the union of feature slugs across up to three tools.
+ * Dedupe columns on tool_id so the same tool can't appear twice even if the
+ * URL slots happen to carry the same slug.
+ *
+ * @since 0.4.1
+ */
+$cols       = array();
+$seen_tools = array();
+foreach ( array( $a, $b, $c ) as $tool ) {
+	if ( ! $tool ) {
+		continue;
+	}
+	$tid = (string) $tool['meta']->tool_id;
+	if ( isset( $seen_tools[ $tid ] ) ) {
+		continue;
+	}
+	$seen_tools[ $tid ] = true;
+	$cols[]             = $tool;
+}
+$distinct_count = count( $cols );
+
+// A duplicate was dropped — surface a warning so the viewer knows why.
+// @since 0.4.1
+$had_duplicate = ( $slug_a && $slug_b && ( $slug_a === $slug_b || $slug_a === $slug_c || ( $slug_b && $slug_b === $slug_c ) ) );
+
+/**
+ * Collect the union of feature slugs across the unique tool columns.
  */
 $feature_union = array();
-foreach ( array( $a, $b, $c ) as $tool ) {
-	if ( ! $tool ) { continue; }
+foreach ( $cols as $tool ) {
 	foreach ( $tool['features'] as $f ) {
 		$feature_union[ $f->feature_slug ] = $f->feature_name;
 	}
@@ -112,12 +136,15 @@ $find_feat = function ( $tool, $slug ) {
 			<button type="submit" class="aifirst-btn aifirst-btn--primary"><?php esc_html_e( 'Compare', 'aifirstsaas' ); ?></button>
 		</form>
 
-		<?php if ( ! $a || ! $b ) : ?>
-			<p class="aifirst-lead"><?php esc_html_e( 'Pick two tools (optionally a third) above to see a side-by-side comparison.', 'aifirstsaas' ); ?></p>
+		<?php if ( $had_duplicate ) : ?>
+			<p class="aifirst-lead aifirst-flash aifirst-flash--error"><?php esc_html_e( 'Pick different tools to compare.', 'aifirstsaas' ); ?></p>
+		<?php endif; ?>
+
+		<?php if ( $distinct_count < 2 ) : ?>
+			<p class="aifirst-lead"><?php esc_html_e( 'Pick at least two tools to compare.', 'aifirstsaas' ); ?></p>
 		<?php else :
-			$cols       = array_filter( array( $a, $b, $c ) );
-			$col_count  = count( $cols );
-			$col_grid   = 'grid-template-columns: 180px ' . str_repeat( '1fr ', $col_count ) . ';'; ?>
+			$col_count = $distinct_count;
+			$col_grid  = 'grid-template-columns: 180px ' . str_repeat( '1fr ', $col_count ) . ';'; ?>
 
 			<div style="display:grid; <?php echo esc_attr( $col_grid ); ?> gap:0; margin-bottom:28px; border:1px solid var(--aif-border); border-radius:10px; overflow:hidden;">
 				<div style="background:var(--aif-bg2); padding:10px; font-size:12px; color:var(--aif-sub); font-weight:600;"><?php esc_html_e( 'Metric', 'aifirstsaas' ); ?></div>

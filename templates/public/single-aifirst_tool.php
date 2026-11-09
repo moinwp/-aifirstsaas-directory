@@ -48,21 +48,30 @@ $cat  = ( $cats && ! is_wp_error( $cats ) ) ? $cats[0] : null;
 		<?php require AIFIRST_TEMPLATES_DIR . 'public/partials/flash.php'; ?>
 
 		<?php
-		AIFirst_Components::breadcrumbs(
+		// Build breadcrumb: Home / Tools / <first category (link)> / <tool title>.
+		// On a single, no queried-term "preference" exists — just use the
+		// tool's first category by term order (same as the hero pill).
+		// @since 0.4.1
+		$aifirst_crumbs = array(
 			array(
-				array(
-					'label' => __( 'Home', 'aifirstsaas' ),
-					'url'   => home_url( '/' ),
-				),
-				array(
-					'label' => __( 'Tools', 'aifirstsaas' ),
-					'url'   => get_post_type_archive_link( 'aifirst_tool' ),
-				),
-				array(
-					'label' => get_the_title( $post_obj ),
-				),
-			)
+				'label' => __( 'Home', 'aifirstsaas' ),
+				'url'   => home_url( '/' ),
+			),
+			array(
+				'label' => __( 'Tools', 'aifirstsaas' ),
+				'url'   => get_post_type_archive_link( 'aifirst_tool' ),
+			),
 		);
+		if ( $cat instanceof WP_Term ) {
+			$aifirst_crumbs[] = array(
+				'label' => $cat->name,
+				'url'   => get_term_link( $cat ),
+			);
+		}
+		$aifirst_crumbs[] = array(
+			'label' => get_the_title( $post_obj ),
+		);
+		AIFirst_Components::breadcrumbs( $aifirst_crumbs );
 		?>
 
 		<header style="display:flex; align-items:flex-start; gap:18px; flex-wrap:wrap; margin: 6px 0 18px;">
@@ -141,10 +150,18 @@ $cat  = ( $cats && ! is_wp_error( $cats ) ) ? $cats[0] : null;
 				<?php if ( ! empty( $maturity ) ) : ?>
 					<section class="aifirst-card" style="margin-bottom:20px;">
 						<strong><?php esc_html_e( 'AI Maturity breakdown', 'aifirstsaas' ); ?></strong>
-						<?php foreach ( $maturity as $row ) : ?>
+						<?php
+						foreach ( $maturity as $row ) :
+							// Respect the stored score_color (green|amber|red), default to amber.
+							// @since 0.4.1
+							$aifirst_sc = strtolower( (string) $row->score_color );
+							if ( ! in_array( $aifirst_sc, array( 'green', 'amber', 'red' ), true ) ) {
+								$aifirst_sc = 'amber';
+							}
+							?>
 							<div style="display:flex; justify-content:space-between; padding:6px 0; font-size:13px;">
 								<span><?php echo esc_html( $row->criterion ); ?></span>
-								<span style="font-weight:600;"><?php echo esc_html( $row->score_display ); ?></span>
+								<span class="aifirst-score--<?php echo esc_attr( $aifirst_sc ); ?>"><?php echo esc_html( $row->score_display ); ?></span>
 							</div>
 						<?php endforeach; ?>
 						<div style="display:flex; justify-content:space-between; padding:8px 0 0; border-top:1px solid var(--aif-border); margin-top:6px; font-weight:700;">

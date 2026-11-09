@@ -2,6 +2,35 @@
 
 Running log of decisions and open items. Dated entries at the top.
 
+## Session 4.5 — Polish (2026-11-09)
+
+Version bumped to **0.4.1**. No schema changes, no new tables.
+
+### Code changes
+
+- **Fix 1 — tool_card shows the right category.** `AIFirst_Components::tool_card()` now checks `is_tax( 'aifirst_category' )` and, when the viewer is on a category archive, uses the matching term from the tool's categories instead of the alphabetically first one. Falls back to `$cats[0]` on every other screen.
+- **Fix 2 — Compare empty / single / same-tool states.** `templates/public/compare.php` now dedupes columns by `tool_id` and only renders the matrix blocks when `$distinct_count >= 2`. When fewer than two distinct tools are resolved it shows "Pick at least two tools to compare."; when the viewer repeated a tool across two slots it shows a flash warning "Pick different tools to compare." and skips the matrices.
+- **Fix 3 — Maturity breakdown score color.** `templates/public/single-aifirst_tool.php` now reads `score_color` per row, whitelists it to `green|amber|red`, and emits `.aifirst-score--<color>`. CSS defines the three classes (`--green/#15C39A`, `--amber/#F59E0B`, `--red/#EF4444`). Unknown / empty values fall back to amber.
+- **Fix 5 — Breadcrumb includes the category.** The tool page breadcrumb is now `Home / Tools / <first category (link)> / <tool title>`. The category link comes from the tool's first category by term order — `get_the_terms()` hands them back in that order and `$cat` was already computed at the top of the template for the hero pill, so no extra query.
+- **Fix 6 — Report-a-change modal switches to AJAX.** The modal now intercepts submit, posts to `admin-ajax.php` with action `aifirst_submit_report`, closes on success, and fires a transient toast "Thanks — your report was recorded." via the new `window.AIFirstToast()` helper. New `AIFirst_Reports::handle_ajax()` handler reuses the same nonce (bound to the tool), honeypot, and 60-s-per-IP throttle as the admin-post handler and talks JSON via `wp_send_json_success/error()`. The admin-post handler stays as a no-JS graceful fallback. Enum changed to the Session 4.5 spec: `wrong_info, pricing_changed, feature_added, feature_removed, other` (column is `VARCHAR(60)`, no migration needed).
+
+### Verified-only (no code changes)
+
+- **Fix 4 — "Same company" sidebar.** Already correct in Session 4. The block is wrapped in `<?php if ( ! empty( $same_co ) ) : ?>`, so the entire card is skipped when no siblings share the current tool's `company_group_id`. The "hide entirely when there are no siblings" choice from the spec was already in place.
+
+### URLs to click to verify
+
+| Fix | URL | Expected |
+|---|---|---|
+| 1 | `/category/email-marketing/` (or whatever slug you have) | Each card's sub-label shows the queried category, not `Content Marketing` |
+| 2a | `/compare/` | Empty selectors + "Pick at least two tools to compare." No matrices |
+| 2b | `/compare/jasper/jasper/` | Warning banner + skipped matrices |
+| 2c | `/compare/jasper/grammarly/` | Full metric matrix + feature matrix |
+| 3 | `/tool/jasper/` | AI Maturity breakdown rows render in mixed green/amber/red per `score_color` |
+| 4 | `/tool/mailchimp/` | Sidebar's "Same company" block appears only when a sibling exists |
+| 5 | `/tool/jasper/` | Breadcrumb reads `Home / Tools / <category> / Jasper`, category is clickable |
+| 6 | `/tool/jasper/` | Click "Report a change" → modal opens → submit → modal closes + toast appears |
+
 ## Session 4 — Public frontend (2026-11-08)
 
 Version bumped to **0.4.0**. Every page in the design now renders from the plugin.
