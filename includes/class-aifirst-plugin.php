@@ -69,6 +69,15 @@ class AIFirst_Plugin {
 		( new AIFirst_Public() )->register();
 		( new AIFirst_Submissions() )->register();
 		( new AIFirst_Reports() )->register();
+
+		// Session 5: comparison CPT, admin inboxes, subscribers, blog.
+		( new AIFirst_Comparison() )->register();
+		( new AIFirst_Subscribers() )->register();
+		( new AIFirst_Blog() )->register();
+		if ( is_admin() ) {
+			( new AIFirst_Reports_Admin() )->register();
+			( new AIFirst_Submissions_Admin() )->register();
+		}
 	}
 
 	/**

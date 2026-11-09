@@ -92,7 +92,7 @@ class AIFirst_Submissions {
 				'tool_id'    => $tool_id,
 				'body'       => wp_json_encode( $body ),
 				'email'      => $email,
-				'status'     => 'pending',
+				'status'     => 'new',
 				'source_ip'  => $ip,
 				'created_at' => current_time( 'mysql' ),
 			),

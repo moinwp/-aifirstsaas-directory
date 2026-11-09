@@ -30,6 +30,7 @@ $aifirst_tables = array(
 	$wpdb->prefix . 'aifirst_feature_meta',
 	$wpdb->prefix . 'aifirst_submissions',
 	$wpdb->prefix . 'aifirst_reports',
+	$wpdb->prefix . 'aifirst_subscribers',
 );
 
 foreach ( $aifirst_tables as $aifirst_table ) {

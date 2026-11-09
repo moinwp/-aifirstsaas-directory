@@ -2,6 +2,96 @@
 
 Running log of decisions and open items. Dated entries at the top.
 
+## Session 5 — Comparisons, admin inboxes, subscribers, blog (2026-11-09)
+
+Version bumped to **0.5.0**. `AIFIRST_DB_VERSION` is `0.5.0` — the upgrader auto-adds the new `aifirst_subscribers` table + `reviewed_at` columns + backfills `pending → new` on the next admin page load.
+
+### Hotfix (0.4.2)
+
+- Report-modal `x-data` was blowing up because the multiline JS body contained JSON-encoded strings whose double quotes terminated the HTML attribute. Moved the Alpine component to a factory `window.AIFirstReportModal()` in `assets/js/public.js`; `report_modal_trigger()` now passes a JSON-safe config through one small `x-data="AIFirstReportModal(...)"` call.
+- Audited every `x-data` in the codebase. The report modal was the only broken one. The newsletter form was simple-literal but we converted it to the same factory pattern (`AIFirstNewsletter`) because Session 5 needed an actual backend anyway. The remaining three (`{ tab: 'features' }`, `{ tab: 'new' }`, `{ open: null }`) are safe and unchanged.
+
+### Carry-over verification
+
+- Compare edge cases (empty / one-tool / same-tool / distinct) — **already correct**, verified only. No changes to the 4.5 implementation.
+- Maturity breakdown colors — **already correct**, verified only. `.aifirst-score--green/amber/red` are present in `assets/css/public.css` and the template renders the whitelisted color.
+
+### New: Comparison CPT
+
+- `AIFirst_Comparison` registers `aifirst_comparison` (public, show_in_rest, supports title/editor/revisions/excerpt, rewrite `vs`, menu icon `dashicons-columns`, menu under Tools).
+- Post meta (all persisted by the save handler after nonce + capability check + enum validation):
+  - `_aifirst_vs_tool_ids` — JSON array of 2–3 slugs; the save handler drops any slug that isn't present in `wp_aifirst_tool_meta` so bogus slugs can't persist.
+  - `_aifirst_vs_verdict_budget`
+  - `_aifirst_vs_verdict_enterprise`
+  - `_aifirst_vs_verdict_use_case_a`
+  - `_aifirst_vs_verdict_use_case_b`
+- Admin metaboxes `Tools in this comparison` and `Verdicts` on the Comparison edit screen.
+- Public: `/vs/<slug>/` renders `templates/public/single-aifirst_comparison.php` (hero, 2–3 tool cards, verdict banner, metric matrix, feature matrix, long-form body).
+
+### Compare runtime integrates curated content
+
+- `templates/public/compare.php` calls `AIFirst_Query::comparison_for_tool_pair()` on the current unique column set. Match is **order-independent** (set equality). On a hit, the verdict banner replaces the Session 4 placeholder and the comparison body appears under "What This Comparison Actually Means" (+ a link to the full `/vs/<slug>/` page). On a miss, the Session 4 placeholder copy stays.
+
+### New query helpers (`AIFirst_Query`)
+
+- `comparisons_for_tool( $tool_id, $limit )` — published comparisons mentioning a tool, newest first. LIKE-match on the JSON meta_value.
+- `comparison_for_tool_pair( array $slugs )` — returns the one matching comparison (set equality after sanitising and sorting both sides) or null.
+- `trending_comparisons( $limit )` — most recent published comparisons for the home "Trending Comparisons" section.
+
+### New components
+
+- `AIFirst_Components::tool_comparisons_sidebar( $tool_id )` — sidebar card listing comparisons that include the current tool. Rendered on `single-aifirst_tool.php`.
+- `AIFirst_Components::trending_comparisons( $limit = 6 )` — home-page rail. Replaces the placeholder block from Session 4.
+- `AIFirst_Components::comparison_link_row( $post )` — reusable "A vs B →" row.
+- `AIFirst_Components::related_tools_block( $slugs )` — block injected at the end of core WP posts.
+
+### Admin inbox — Reports
+
+- `AIFirst_Reports_Admin` + `AIFirst_Reports_List_Table` under **Tools → Reports** with a `(N)` badge counting `status='new'`.
+- Columns: Tool, Kind, Body excerpt (60 chars), Email, Status, Submitted.
+- Filters: Status, Tool, Kind. Search over body + email.
+- Row actions: Mark reviewed / Mark resolved / Reject / Delete. Bulk actions mirror the row actions.
+- Status column backfilled from `pending` → `new` by the upgrader. `reviewed_at` added by dbDelta — the column is nullable; status transitions write `current_time('mysql')` to it.
+
+### Admin inbox — Submissions
+
+- `AIFirst_Submissions_Admin` + `AIFirst_Submissions_List_Table` under **Tools → Submissions** with a `(N)` badge.
+- Columns: Kind (new tool / update), Target tool, Body (parsed JSON summary), Email, Status, Submitted.
+- Filters: Status, Kind. Search over body + email + tool_id.
+- Row actions: Approve / Reject / Delete. Bulk: same.
+- **Approve workflow**: for both `new` and `update` submissions, the handler reconstructs a canonical record from the stored JSON (title, website, category, ai_features, notes → tool_features / meta), runs it through `AIFirst_Record::validate()`, then calls `AIFirst_Intake::save_record()` with `status: draft`. On success, the submission row is marked `approved` and `reviewed_at` is stamped. Validation failures flash the exact reasons on the admin page.
+
+### Newsletter subscribers
+
+- New table `{prefix}aifirst_subscribers` created by the upgrader. Columns: `sub_id, email (UNIQUE), scope (all|category|tool|feature), scope_target, source, confirmed, confirmed_at, source_ip, created_at`. Indexes: `uniq_email`, `(scope, scope_target)`, `confirmed`.
+- AJAX endpoint `aifirst_subscribe` (anonymous allowed) — nonce, honeypot, 5/hour-per-IP transient throttle. Upserts on email.
+- Newsletter form now calls `window.AIFirstNewsletter()` factory from `assets/js/public.js`, posts to the AJAX endpoint, shows a toast on success and an inline error on failure. The form carries hidden `scope` / `scope_target` / `source` fields so a signup from a tool page can be stored with the right scope later (today everything pages pass `all`/`home`; tool/category forms can pass `tool`/<tool_id> etc. when we wire them in).
+- Admin page **Tools → Subscribers** — filtered list (scope, confirmed), server-side pagination, and a nonce-protected **Export CSV** button that streams the currently-filtered rows.
+
+### Blog related-tools
+
+- `AIFirst_Blog` adds a sidebar metabox on the core post editor with a comma/newline-separated slug list. Stored in post meta `_aifirst_related_tools` as a JSON slug array (max 10).
+- At render time, `the_content` filter appends a "Related AI tools" block when the meta is present on a singular post. Block reuses `AIFirst_Components::tool_card()` so the styling matches the directory pages.
+- The plugin's `public.css` is enqueued on blog posts that carry related tools, so the block works on any theme.
+
+### Schema changes (0.5.0)
+
+- `{prefix}aifirst_subscribers` — new table (fields above).
+- `{prefix}aifirst_reports` — `status DEFAULT 'new'`; new `reviewed_at DATETIME NULL`. Existing `pending` rows backfilled to `new`.
+- `{prefix}aifirst_submissions` — `status DEFAULT 'new'`; new `reviewed_at DATETIME NULL`. Existing `pending` rows backfilled to `new`.
+- `AIFirst_Activator::migrate_post_dbdelta()` carries both backfills, idempotent.
+- The 0.4.2 → 0.5.0 upgrade requires no reactivation. The upgrader's rewrite-flush flag (added in Session 4) covers the new `/vs/` CPT rewrite.
+
+### Security
+
+Every admin page enforces `manage_options`; every action handler is nonce-protected (`check_admin_referer`). The subscribe AJAX endpoint is anonymous-allowed by design — guarded by nonce + honeypot + per-IP rate limit. Approval workflows validate the canonical record through `AIFirst_Record::validate()` before calling intake. All output escaped (`esc_html`, `esc_url`, `esc_attr`, `wp_kses_post`).
+
+### Known-deferred
+
+- **Double opt-in for subscribers.** The `confirmed` column is populated but we don't send a confirmation email yet. Deferred until we pick a transactional provider.
+- **Comparisons admin list column.** Standard WP CPT listing is adequate for now; a dedicated "pending approval" column makes sense when we add editorial review.
+- **Blog related-tools metabox UX.** Currently a plaintext slug list. Autocomplete against `wp_aifirst_tool_meta` would be nicer; deferred.
+
 ## Session 4.5 — Polish (2026-11-09)
 
 Version bumped to **0.4.1**. No schema changes, no new tables.

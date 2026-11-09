@@ -133,6 +133,10 @@ class AIFirst_Public {
 		if ( is_singular( 'aifirst_tool' ) ) {
 			return 'single-aifirst_tool.php';
 		}
+		if ( is_singular( 'aifirst_comparison' ) ) {
+			// @since 0.5.0
+			return 'single-aifirst_comparison.php';
+		}
 		if ( is_tax( 'aifirst_category' ) ) {
 			return 'taxonomy-aifirst_category.php';
 		}
@@ -219,7 +223,7 @@ class AIFirst_Public {
 	protected function is_plugin_screen() {
 		return (
 			'' !== $this->resolve_template()
-			|| is_singular( 'aifirst_tool' )
+			|| is_singular( array( 'aifirst_tool', 'aifirst_comparison' ) )
 			|| is_post_type_archive( 'aifirst_tool' )
 			|| is_tax( array( 'aifirst_category', 'aifirst_feature' ) )
 		);

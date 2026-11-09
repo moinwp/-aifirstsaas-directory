@@ -289,6 +289,7 @@
 	cursor: pointer;
 }
 .aifirst-newsletter__done { color: var(--aif-good); font-weight: 600; }
+.aifirst-newsletter__error { color: var(--aif-bad); font-size: 12.5px; margin: 0; flex-basis: 100%; }
 
 /* Modal */
 .aifirst-modal {
@@ -435,6 +436,26 @@
 	font-size: 12.5px;
 	margin: 6px 0 0;
 }
+
+/* Comparison link row + trending list (@since 0.5.0) */
+.aifirst-cmp-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 8px 4px;
+	font-size: 13px;
+	color: var(--aif-text);
+	border-bottom: 1px solid var(--aif-border);
+}
+.aifirst-cmp-row:last-child { border-bottom: 0; }
+.aifirst-cmp-row:hover { color: var(--aif-accent); text-decoration: none; }
+.aifirst-cmp-row__arrow { color: var(--aif-accent); }
+.aifirst-trending { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
+@media (max-width: 720px) { .aifirst-trending { grid-template-columns: 1fr; } }
+
+/* Related tools block on core WP posts (@since 0.5.0) */
+.aifirst-related-tools { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--aif-border); }
+.aifirst-related-tools__grid { display: flex; flex-direction: column; gap: 10px; }
 
 /* Compare matrix cells */
 .aifirst-cmp-cell--yes { color: var(--aif-good); font-weight: 700; text-align: center; }

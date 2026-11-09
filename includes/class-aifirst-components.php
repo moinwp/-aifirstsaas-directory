@@ -253,17 +253,36 @@ class AIFirst_Components {
 	 * @since 0.4.0
 	 * @return void
 	 */
-	public static function newsletter_form() {
+	public static function newsletter_form( $source = 'home', $scope = 'all', $scope_target = '' ) {
+		$ajax_url = admin_url( 'admin-ajax.php' );
+		// Factory config for the newsletter Alpine component.
+		// @since 0.5.0
+		$aifirst_cfg = array(
+			'ajaxUrl'          => esc_url_raw( $ajax_url ),
+			'errorText'        => __( 'Could not subscribe. Please try again.', 'aifirstsaas' ),
+			'successText'      => __( 'Subscribed — check your inbox.', 'aifirstsaas' ),
+			'networkErrorText' => __( 'Network error. Please try again.', 'aifirstsaas' ),
+		);
 		?>
-		<form class="aifirst-newsletter" x-data="{ sent: false, email: '' }" @submit.prevent="sent = true">
+		<form class="aifirst-newsletter" x-data="AIFirstNewsletter(<?php echo esc_attr( wp_json_encode( $aifirst_cfg ) ); ?>)" @submit.prevent="submit($event)" novalidate>
+			<?php wp_nonce_field( 'aifirst_subscribe', 'aifirst_subscribe_nonce' ); ?>
+			<input type="hidden" name="scope" value="<?php echo esc_attr( $scope ); ?>" />
+			<input type="hidden" name="scope_target" value="<?php echo esc_attr( $scope_target ); ?>" />
+			<input type="hidden" name="source" value="<?php echo esc_attr( $source ); ?>" />
+			<p><input type="text" name="hp" value="" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;" /></p>
+
 			<div class="aifirst-newsletter__copy">
 				<strong><?php esc_html_e( 'Get weekly AI feature updates', 'aifirstsaas' ); ?></strong>
 				<span><?php esc_html_e( 'New features, plan changes, and maturity shifts — every Friday.', 'aifirstsaas' ); ?></span>
 			</div>
 			<div class="aifirst-newsletter__fields" x-show="!sent">
-				<input type="email" required placeholder="you@company.com" x-model="email" />
-				<button type="submit"><?php esc_html_e( 'Subscribe', 'aifirstsaas' ); ?></button>
+				<input type="email" name="email" required placeholder="you@company.com" x-model="email" :disabled="busy" />
+				<button type="submit" :disabled="busy">
+					<span x-show="!busy"><?php esc_html_e( 'Subscribe', 'aifirstsaas' ); ?></span>
+					<span x-show="busy" x-cloak><?php esc_html_e( 'Sending…', 'aifirstsaas' ); ?></span>
+				</button>
 			</div>
+			<p class="aifirst-newsletter__error" x-show="error" x-text="error" x-cloak></p>
 			<div class="aifirst-newsletter__done" x-show="sent" x-cloak>
 				✓ <?php esc_html_e( 'Subscribed! Check your inbox.', 'aifirstsaas' ); ?>
 			</div>
@@ -282,42 +301,19 @@ class AIFirst_Components {
 	public static function report_modal_trigger( $tool_id ) {
 		$tool_id  = (string) $tool_id;
 		$ajax_url = admin_url( 'admin-ajax.php' );
+
+		// Factory config — JSON-safe, single-attribute. The multi-line
+		// variant blew up in 0.4.1 because the encoded strings carried
+		// double quotes that terminated the x-data attribute early.
+		// @since 0.4.2
+		$aifirst_cfg = array(
+			'ajaxUrl'          => esc_url_raw( $ajax_url ),
+			'errorText'        => __( 'Something went wrong. Please try again.', 'aifirstsaas' ),
+			'successText'      => __( 'Thanks — your report was recorded.', 'aifirstsaas' ),
+			'networkErrorText' => __( 'Network error. Please try again.', 'aifirstsaas' ),
+		);
 		?>
-		<div class="aifirst-report"
-			x-data="{
-				open: false,
-				busy: false,
-				error: '',
-				async submit( e ) {
-					if ( this.busy ) return;
-					this.busy  = true;
-					this.error = '';
-					try {
-						const fd  = new FormData( e.target );
-						fd.append( 'action', 'aifirst_submit_report' );
-						const res = await fetch( <?php echo wp_json_encode( esc_url_raw( $ajax_url ) ); ?>, {
-							method: 'POST',
-							credentials: 'same-origin',
-							body: fd,
-						} );
-						const data = await res.json().catch( () => null );
-						if ( ! res.ok || ! data || ! data.success ) {
-							this.error = ( data && data.data && data.data.message ) ? data.data.message : <?php echo wp_json_encode( esc_html__( 'Something went wrong. Please try again.', 'aifirstsaas' ) ); ?>;
-							this.busy = false;
-							return;
-						}
-						this.open  = false;
-						this.busy  = false;
-						e.target.reset();
-						if ( window.AIFirstToast ) {
-							window.AIFirstToast( data.data && data.data.message ? data.data.message : <?php echo wp_json_encode( esc_html__( 'Thanks — your report was recorded.', 'aifirstsaas' ) ); ?> );
-						}
-					} catch ( err ) {
-						this.error = <?php echo wp_json_encode( esc_html__( 'Network error. Please try again.', 'aifirstsaas' ) ); ?>;
-						this.busy  = false;
-					}
-				}
-			}">
+		<div class="aifirst-report" x-data="AIFirstReportModal(<?php echo esc_attr( wp_json_encode( $aifirst_cfg ) ); ?>)">
 			<button type="button" class="aifirst-report__trigger" @click="open = true">
 				<?php esc_html_e( 'Report a change', 'aifirstsaas' ); ?>
 			</button>
@@ -376,5 +372,98 @@ class AIFirst_Components {
 			return '';
 		}
 		return mysql2date( get_option( 'date_format', 'M j, Y' ), $date );
+	}
+
+	/**
+	 * Comparison card used in the tool sidebar and the home trending rail.
+	 *
+	 * @since 0.5.0
+	 * @param WP_Post $post Comparison post.
+	 * @return void
+	 */
+	public static function comparison_link_row( $post ) {
+		if ( ! $post instanceof WP_Post ) {
+			return;
+		}
+		$slugs = AIFirst_Comparison::get_tool_ids( $post->ID );
+		$names = array();
+		foreach ( $slugs as $slug ) {
+			$m = AIFirst_Query::tool_meta_by_id( $slug );
+			if ( $m ) {
+				$names[] = get_the_title( (int) $m->post_id );
+			}
+		}
+		$label = ! empty( $names ) ? implode( ' vs ', $names ) : get_the_title( $post );
+		printf(
+			'<a class="aifirst-cmp-row" href="%s"><span>%s</span><span class="aifirst-cmp-row__arrow">→</span></a>',
+			esc_url( get_permalink( $post ) ),
+			esc_html( $label )
+		);
+	}
+
+	/**
+	 * Tool sidebar: list up to N published comparisons that include this tool.
+	 *
+	 * @since 0.5.0
+	 * @param string $tool_id tool_id slug.
+	 * @param int    $limit   Max rows.
+	 * @return void
+	 */
+	public static function tool_comparisons_sidebar( $tool_id, $limit = 5 ) {
+		$list = AIFirst_Query::comparisons_for_tool( $tool_id, $limit );
+		if ( empty( $list ) ) {
+			return;
+		}
+		echo '<div class="aifirst-card"><strong>' . esc_html__( 'Related comparisons', 'aifirstsaas' ) . '</strong>';
+		foreach ( $list as $p ) {
+			self::comparison_link_row( $p );
+		}
+		echo '</div>';
+	}
+
+	/**
+	 * Home "Trending Comparisons" section.
+	 *
+	 * @since 0.5.0
+	 * @param int $limit Max rows.
+	 * @return void
+	 */
+	public static function trending_comparisons( $limit = 6 ) {
+		$list = AIFirst_Query::trending_comparisons( $limit );
+		if ( empty( $list ) ) {
+			echo '<p class="aifirst-lead">' . esc_html__( 'No comparisons published yet.', 'aifirstsaas' ) . '</p>';
+			return;
+		}
+		echo '<div class="aifirst-trending">';
+		foreach ( $list as $p ) {
+			self::comparison_link_row( $p );
+		}
+		echo '</div>';
+	}
+
+	/**
+	 * Related AI tools block (used on core WP posts).
+	 *
+	 * @since 0.5.0
+	 * @param string[] $tool_ids tool_id slugs.
+	 * @return void
+	 */
+	public static function related_tools_block( $tool_ids ) {
+		if ( empty( $tool_ids ) || ! is_array( $tool_ids ) ) {
+			return;
+		}
+		echo '<section class="aifirst-related-tools">';
+		echo '<h2 class="aifirst-h3">' . esc_html__( 'Related AI tools', 'aifirstsaas' ) . '</h2>';
+		echo '<div class="aifirst-related-tools__grid">';
+		foreach ( $tool_ids as $slug ) {
+			$slug = sanitize_title( (string) $slug );
+			if ( '' === $slug ) { continue; }
+			$meta = AIFirst_Query::tool_meta_by_id( $slug );
+			if ( ! $meta ) { continue; }
+			$post = get_post( (int) $meta->post_id );
+			if ( ! $post ) { continue; }
+			self::tool_card( $post, $meta );
+		}
+		echo '</div></section>';
 	}
 }

@@ -35,9 +35,11 @@ class AIFirst_Activator {
 		require_once AIFIRST_INCLUDES_DIR . 'class-aifirst-post-types.php';
 		require_once AIFIRST_INCLUDES_DIR . 'class-aifirst-taxonomies.php';
 		require_once AIFIRST_INCLUDES_DIR . 'class-aifirst-public.php';
+		require_once AIFIRST_INCLUDES_DIR . 'class-aifirst-comparison.php';
 		( new AIFirst_Post_Types() )->register();
 		( new AIFirst_Taxonomies() )->register();
 		( new AIFirst_Public() )->add_rewrites();
+		( new AIFirst_Comparison() )->register_post_type();
 
 		flush_rewrite_rules();
 	}
@@ -272,8 +274,9 @@ class AIFirst_Activator {
 			tool_id VARCHAR(191) NOT NULL DEFAULT '',
 			body LONGTEXT NULL,
 			email VARCHAR(190) NOT NULL DEFAULT '',
-			status VARCHAR(20) NOT NULL DEFAULT 'pending',
+			status VARCHAR(20) NOT NULL DEFAULT 'new',
 			source_ip VARCHAR(45) NOT NULL DEFAULT '',
+			reviewed_at DATETIME NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY  (submission_id),
 			KEY idx_status (status, created_at),
@@ -286,12 +289,29 @@ class AIFirst_Activator {
 			kind VARCHAR(60) NOT NULL DEFAULT '',
 			body TEXT NOT NULL,
 			email VARCHAR(190) NOT NULL DEFAULT '',
-			status VARCHAR(20) NOT NULL DEFAULT 'pending',
+			status VARCHAR(20) NOT NULL DEFAULT 'new',
 			source_ip VARCHAR(45) NOT NULL DEFAULT '',
+			reviewed_at DATETIME NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY  (report_id),
 			KEY idx_tool (tool_id, created_at),
 			KEY idx_status (status)
+		) {$charset_collate};";
+
+		$sql[] = "CREATE TABLE {$prefix}subscribers (
+			sub_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			email VARCHAR(190) NOT NULL,
+			scope VARCHAR(32) NOT NULL DEFAULT 'all',
+			scope_target VARCHAR(191) NOT NULL DEFAULT '',
+			source VARCHAR(64) NOT NULL DEFAULT '',
+			confirmed TINYINT(1) NOT NULL DEFAULT 0,
+			confirmed_at DATETIME NULL,
+			source_ip VARCHAR(45) NOT NULL DEFAULT '',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (sub_id),
+			UNIQUE KEY uniq_email (email),
+			KEY idx_scope (scope, scope_target),
+			KEY idx_confirmed (confirmed)
 		) {$charset_collate};";
 
 		$sql[] = "CREATE TABLE {$prefix}feature_meta (
@@ -339,5 +359,15 @@ class AIFirst_Activator {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE {$tool_meta} MODIFY COLUMN `{$col_safe}` TINYINT UNSIGNED NOT NULL DEFAULT 0" );
 		}
+
+		// Session 5: existing reports / submissions rows used the old
+		// default 'pending'. Session 5 contract is 'new' / reviewed /
+		// resolved / rejected (reports) and 'new' / approved / rejected
+		// (submissions). Backfill in place — idempotent.
+		// @since 0.5.0
+		$reports     = $wpdb->prefix . 'aifirst_reports';
+		$submissions = $wpdb->prefix . 'aifirst_submissions';
+		$wpdb->query( $wpdb->prepare( "UPDATE {$reports} SET status = %s WHERE status = %s", 'new', 'pending' ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$submissions} SET status = %s WHERE status = %s", 'new', 'pending' ) );
 	}
 }

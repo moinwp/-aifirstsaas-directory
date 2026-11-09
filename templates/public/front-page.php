@@ -116,8 +116,10 @@ $universal = get_terms(
 
 		<section style="margin:40px 0;">
 			<h2 class="aifirst-h2"><?php esc_html_e( 'Trending Comparisons', 'aifirstsaas' ); ?></h2>
-			<p class="aifirst-lead"><?php esc_html_e( 'Curated side-by-side pages coming soon. Use the compare tool to run any pair.', 'aifirstsaas' ); ?></p>
-			<a href="<?php echo esc_url( home_url( '/compare/' ) ); ?>" class="aifirst-btn aifirst-btn--primary"><?php esc_html_e( 'Compare tools →', 'aifirstsaas' ); ?></a>
+			<?php AIFirst_Components::trending_comparisons( 6 ); ?>
+			<p style="margin-top:14px;">
+				<a href="<?php echo esc_url( home_url( '/compare/' ) ); ?>" class="aifirst-btn"><?php esc_html_e( 'Compare any two tools →', 'aifirstsaas' ); ?></a>
+			</p>
 		</section>
 
 		<section class="aifirst-card" style="margin:36px 0; display:grid; grid-template-columns:1fr 1.4fr; gap:36px;">

@@ -554,6 +554,127 @@ class AIFirst_Query {
 	}
 
 	/**
+	 * Return up to $limit published aifirst_comparison posts that include
+	 * the given tool_id in their _aifirst_vs_tool_ids meta.
+	 *
+	 * @since 0.5.0
+	 * @param string $tool_id Tool slug.
+	 * @param int    $limit   Max rows.
+	 * @return WP_Post[]
+	 */
+	public static function comparisons_for_tool( $tool_id, $limit = 5 ) {
+		$tool_id = sanitize_title( (string) $tool_id );
+		if ( '' === $tool_id ) {
+			return array();
+		}
+		global $wpdb;
+		// JSON stored as a slug array like ["jasper","grammarly"] — a slug
+		// is URL-safe so double-quote wrapping is safe to match on.
+		$needle = '%"' . $wpdb->esc_like( $tool_id ) . '"%';
+		$ids    = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT p.ID FROM {$wpdb->posts} p
+				INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+				WHERE p.post_type = %s
+					AND p.post_status = 'publish'
+					AND pm.meta_key = %s
+					AND pm.meta_value LIKE %s
+				ORDER BY p.post_date DESC
+				LIMIT %d",
+				AIFirst_Comparison::POST_TYPE,
+				AIFirst_Comparison::META_TOOLS,
+				$needle,
+				(int) $limit
+			)
+		);
+		if ( empty( $ids ) ) {
+			return array();
+		}
+		return get_posts(
+			array(
+				'post_type'   => AIFirst_Comparison::POST_TYPE,
+				'post_status' => 'publish',
+				'include'     => array_map( 'intval', $ids ),
+				'orderby'     => 'post__in',
+			)
+		);
+	}
+
+	/**
+	 * Find the single published comparison whose tool_ids set equals the
+	 * given set (order-independent).
+	 *
+	 * @since 0.5.0
+	 * @param string[] $tool_ids 2 or 3 slugs.
+	 * @return WP_Post|null
+	 */
+	public static function comparison_for_tool_pair( array $tool_ids ) {
+		$slugs = array();
+		foreach ( $tool_ids as $s ) {
+			$s = sanitize_title( (string) $s );
+			if ( '' !== $s && ! in_array( $s, $slugs, true ) ) {
+				$slugs[] = $s;
+			}
+		}
+		if ( count( $slugs ) < 2 ) {
+			return null;
+		}
+		sort( $slugs );
+		$wanted = count( $slugs );
+
+		global $wpdb;
+		// Candidates: every published comparison that contains the first
+		// slug. Then filter in PHP by set equality (small result set).
+		$needle = '%"' . $wpdb->esc_like( $slugs[0] ) . '"%';
+		$ids    = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT p.ID FROM {$wpdb->posts} p
+				INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+				WHERE p.post_type = %s
+					AND p.post_status = 'publish'
+					AND pm.meta_key = %s
+					AND pm.meta_value LIKE %s
+				ORDER BY p.post_date DESC
+				LIMIT 50",
+				AIFirst_Comparison::POST_TYPE,
+				AIFirst_Comparison::META_TOOLS,
+				$needle
+			)
+		);
+		foreach ( (array) $ids as $post_id ) {
+			$row = AIFirst_Comparison::get_tool_ids( (int) $post_id );
+			if ( count( $row ) !== $wanted ) {
+				continue;
+			}
+			$row_sorted = $row;
+			sort( $row_sorted );
+			if ( $row_sorted === $slugs ) {
+				return get_post( (int) $post_id );
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Most-recent published comparisons for the home "Trending" rail.
+	 *
+	 * @since 0.5.0
+	 * @param int $limit Max rows.
+	 * @return WP_Post[]
+	 */
+	public static function trending_comparisons( $limit = 6 ) {
+		return get_posts(
+			array(
+				'post_type'      => AIFirst_Comparison::POST_TYPE,
+				'post_status'    => 'publish',
+				'posts_per_page' => (int) $limit,
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+			)
+		);
+	}
+
+	/**
 	 * Split a JSON-encoded list back into a PHP array (safe).
 	 *
 	 * @since 0.4.0

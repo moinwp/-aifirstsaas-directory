@@ -385,6 +385,8 @@ $cat  = ( $cats && ! is_wp_error( $cats ) ) ? $cats[0] : null;
 					<?php endforeach; ?>
 				</div>
 
+				<?php AIFirst_Components::tool_comparisons_sidebar( $tool_id ); ?>
+
 				<?php if ( ! empty( $same_co ) ) : ?>
 					<div class="aifirst-card">
 						<strong><?php esc_html_e( 'Same company', 'aifirstsaas' ); ?></strong>

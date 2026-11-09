@@ -82,6 +82,21 @@ foreach ( $cols as $tool ) {
 }
 ksort( $feature_union );
 
+// Look up a curated comparison post for the current set of columns.
+// @since 0.5.0
+$curated          = null;
+$curated_verdicts = null;
+if ( $distinct_count >= 2 ) {
+	$slug_set = array();
+	foreach ( $cols as $tool ) {
+		$slug_set[] = (string) $tool['meta']->tool_id;
+	}
+	$curated = AIFirst_Query::comparison_for_tool_pair( $slug_set );
+	if ( $curated ) {
+		$curated_verdicts = AIFirst_Comparison::get_verdicts( $curated->ID );
+	}
+}
+
 /**
  * Look up a feature row within a tool's features list.
  */
@@ -201,11 +216,37 @@ $find_feat = function ( $tool, $slug ) {
 				</div>
 			<?php endif; ?>
 
+			<?php if ( $curated_verdicts && ( '' !== $curated_verdicts['budget'] || '' !== $curated_verdicts['enterprise'] ) ) : ?>
+				<section class="aifirst-card" style="margin-top:28px; max-width:900px;">
+					<?php if ( '' !== $curated_verdicts['budget'] ) : ?>
+						<p><strong><?php esc_html_e( 'For AI on a budget:', 'aifirstsaas' ); ?></strong> <?php echo esc_html( $curated_verdicts['budget'] ); ?></p>
+					<?php endif; ?>
+					<?php if ( '' !== $curated_verdicts['enterprise'] ) : ?>
+						<p><strong><?php esc_html_e( 'For enterprise:', 'aifirstsaas' ); ?></strong> <?php echo esc_html( $curated_verdicts['enterprise'] ); ?></p>
+					<?php endif; ?>
+					<?php if ( '' !== $curated_verdicts['use_case_a'] ) : ?>
+						<p><strong><?php esc_html_e( 'Leans toward tool A:', 'aifirstsaas' ); ?></strong> <?php echo esc_html( $curated_verdicts['use_case_a'] ); ?></p>
+					<?php endif; ?>
+					<?php if ( '' !== $curated_verdicts['use_case_b'] ) : ?>
+						<p><strong><?php esc_html_e( 'Leans toward tool B:', 'aifirstsaas' ); ?></strong> <?php echo esc_html( $curated_verdicts['use_case_b'] ); ?></p>
+					<?php endif; ?>
+				</section>
+			<?php endif; ?>
+
 			<section style="margin-top:28px; max-width:900px;">
 				<h2 class="aifirst-h2"><?php esc_html_e( 'What This Comparison Actually Means', 'aifirstsaas' ); ?></h2>
-				<div class="aifirst-card" style="color:var(--aif-sub);">
-					<?php esc_html_e( 'Curated side-by-side analysis coming in a later session. For now, use the metric strip and feature matrix above to see where each tool has coverage.', 'aifirstsaas' ); ?>
-				</div>
+				<?php if ( $curated ) : ?>
+					<div class="aifirst-card aifirst-expert">
+						<?php echo apply_filters( 'the_content', $curated->post_content ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+					</div>
+					<p style="margin-top:8px; font-size:12.5px; color:var(--aif-sub);">
+						<a href="<?php echo esc_url( get_permalink( $curated ) ); ?>"><?php esc_html_e( 'Read the full comparison →', 'aifirstsaas' ); ?></a>
+					</p>
+				<?php else : ?>
+					<div class="aifirst-card" style="color:var(--aif-sub);">
+						<?php esc_html_e( 'No curated write-up yet. Use the metric strip and feature matrix above to see where each tool has coverage.', 'aifirstsaas' ); ?>
+					</div>
+				<?php endif; ?>
 			</section>
 		<?php endif; ?>
 	</div>

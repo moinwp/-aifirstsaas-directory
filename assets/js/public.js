@@ -45,6 +45,104 @@
 		}, 3600 );
 	};
 
+	/**
+	 * Alpine factory for the "Report a change" modal on tool pages.
+	 * The template passes a small JSON config: ajaxUrl + localized strings.
+	 *
+	 * @since 0.4.2
+	 */
+	window.AIFirstReportModal = function ( config ) {
+		return {
+			open:  false,
+			busy:  false,
+			error: '',
+			async submit( e ) {
+				if ( this.busy ) {
+					return;
+				}
+				this.busy  = true;
+				this.error = '';
+				try {
+					const fd = new FormData( e.target );
+					fd.append( 'action', 'aifirst_submit_report' );
+					const res = await fetch( config.ajaxUrl, {
+						method:      'POST',
+						credentials: 'same-origin',
+						body:        fd,
+					} );
+					const data = await res.json().catch( function () { return null; } );
+					if ( ! res.ok || ! data || ! data.success ) {
+						this.error = ( data && data.data && data.data.message )
+							? data.data.message
+							: config.errorText;
+						this.busy = false;
+						return;
+					}
+					this.open = false;
+					this.busy = false;
+					e.target.reset();
+					if ( window.AIFirstToast ) {
+						window.AIFirstToast(
+							data.data && data.data.message
+								? data.data.message
+								: config.successText
+						);
+					}
+				} catch ( err ) {
+					this.error = config.networkErrorText;
+					this.busy  = false;
+				}
+			}
+		};
+	};
+
+	/**
+	 * Alpine factory for the public newsletter signup form.
+	 * Posts to the aifirst_subscribe AJAX endpoint and shows a toast.
+	 *
+	 * @since 0.5.0
+	 */
+	window.AIFirstNewsletter = function ( config ) {
+		return {
+			sent:  false,
+			busy:  false,
+			email: '',
+			error: '',
+			async submit( e ) {
+				if ( this.busy ) {
+					return;
+				}
+				this.busy  = true;
+				this.error = '';
+				try {
+					const fd = new FormData( e.target );
+					fd.append( 'action', 'aifirst_subscribe' );
+					const res = await fetch( config.ajaxUrl, {
+						method:      'POST',
+						credentials: 'same-origin',
+						body:        fd,
+					} );
+					const data = await res.json().catch( function () { return null; } );
+					if ( ! res.ok || ! data || ! data.success ) {
+						this.error = ( data && data.data && data.data.message )
+							? data.data.message
+							: config.errorText;
+						this.busy = false;
+						return;
+					}
+					this.sent = true;
+					this.busy = false;
+					if ( window.AIFirstToast ) {
+						window.AIFirstToast( config.successText );
+					}
+				} catch ( err ) {
+					this.error = config.networkErrorText;
+					this.busy  = false;
+				}
+			}
+		};
+	};
+
 	// Small helper for the Compare page's selector submit.
 	window.AIFirstGoCompare = function ( a, b, c ) {
 		if ( ! window.AIFirstPublic ) return;
