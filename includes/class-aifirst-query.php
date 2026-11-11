@@ -182,6 +182,12 @@ class AIFirst_Query {
 	 * @return array
 	 */
 	public static function radar_recent( $args = array() ) {
+		// @since 0.7.0 — transient-wrapped by hash-of-args.
+		$cache_key = AIFirst_Cache::key( 'radar_' . md5( wp_json_encode( $args ) ) );
+		$cached    = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return $cached;
+		}
 		global $wpdb;
 		$table = $wpdb->prefix . 'aifirst_radar';
 
@@ -213,7 +219,9 @@ class AIFirst_Query {
 			. ' ORDER BY change_date DESC LIMIT %d';
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		return $wpdb->get_results( $wpdb->prepare( $sql, $params ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $params ) );
+		set_transient( $cache_key, $rows, 30 * MINUTE_IN_SECONDS );
+		return $rows;
 	}
 
 	/**
@@ -335,11 +343,20 @@ class AIFirst_Query {
 	 * @return int
 	 */
 	public static function count_tools_with_feature( $feature_slug ) {
+		// @since 0.7.0 — transient-wrapped.
+		$slug_key  = sanitize_title( (string) $feature_slug );
+		$cache_key = AIFirst_Cache::key( 'featcount_' . $slug_key );
+		$cached    = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return (int) $cached;
+		}
 		global $wpdb;
 		$table = $wpdb->prefix . 'aifirst_tool_features';
-		return (int) $wpdb->get_var(
+		$count = (int) $wpdb->get_var(
 			$wpdb->prepare( "SELECT COUNT(DISTINCT tool_id) FROM {$table} WHERE feature_slug = %s", (string) $feature_slug )
 		);
+		set_transient( $cache_key, $count, 15 * MINUTE_IN_SECONDS );
+		return $count;
 	}
 
 	/**
@@ -350,20 +367,32 @@ class AIFirst_Query {
 	 * @return int
 	 */
 	public static function count_tools_in_category( $term_id ) {
+		// @since 0.7.0 — transient-wrapped.
+		$term_id   = (int) $term_id;
+		$cache_key = AIFirst_Cache::key( 'catcount_' . $term_id );
+		$cached    = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return (int) $cached;
+		}
+
 		$count = wp_count_terms(
 			array(
 				'taxonomy' => 'aifirst_category',
-				'include'  => array( (int) $term_id ),
+				'include'  => array( $term_id ),
 			)
 		);
 		if ( is_wp_error( $count ) ) {
+			set_transient( $cache_key, 0, 15 * MINUTE_IN_SECONDS );
 			return 0;
 		}
 		$term = get_term( $term_id, 'aifirst_category' );
 		if ( ! $term || is_wp_error( $term ) ) {
+			set_transient( $cache_key, 0, 15 * MINUTE_IN_SECONDS );
 			return 0;
 		}
-		return (int) $term->count;
+		$n = (int) $term->count;
+		set_transient( $cache_key, $n, 15 * MINUTE_IN_SECONDS );
+		return $n;
 	}
 
 	/**
@@ -374,6 +403,14 @@ class AIFirst_Query {
 	 * @return array{tool_count:int, avg_maturity:float, free_pct:float}
 	 */
 	public static function category_stats( $term_id ) {
+		// @since 0.7.0 — transient-wrapped.
+		$term_id = (int) $term_id;
+		$cache_key = AIFirst_Cache::key( 'catstats_' . $term_id );
+		$cached    = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return $cached;
+		}
+
 		global $wpdb;
 		$meta = $wpdb->prefix . 'aifirst_tool_meta';
 
@@ -393,11 +430,13 @@ class AIFirst_Query {
 		);
 
 		if ( empty( $posts ) ) {
-			return array(
+			$result = array(
 				'tool_count'   => 0,
 				'avg_maturity' => 0.0,
 				'free_pct'     => 0.0,
 			);
+			set_transient( $cache_key, $result, 15 * MINUTE_IN_SECONDS );
+			return $result;
 		}
 
 		$placeholders = implode( ',', array_fill( 0, count( $posts ), '%d' ) );
@@ -409,17 +448,21 @@ class AIFirst_Query {
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$row = $wpdb->get_row( $wpdb->prepare( $sql, $posts ) );
 		if ( ! $row || 0 === (int) $row->c ) {
-			return array(
+			$result = array(
 				'tool_count'   => count( $posts ),
 				'avg_maturity' => 0.0,
 				'free_pct'     => 0.0,
 			);
+			set_transient( $cache_key, $result, 15 * MINUTE_IN_SECONDS );
+			return $result;
 		}
-		return array(
+		$result = array(
 			'tool_count'   => (int) $row->c,
 			'avg_maturity' => round( (float) $row->avg_m, 1 ),
 			'free_pct'     => round( (float) $row->free_count * 100.0 / (float) $row->c, 1 ),
 		);
+		set_transient( $cache_key, $result, 15 * MINUTE_IN_SECONDS );
+		return $result;
 	}
 
 	/**
@@ -431,11 +474,18 @@ class AIFirst_Query {
 	 * @return array Rows carrying post_id, tool_id, title, ai_maturity_score, meta…
 	 */
 	public static function leaderboard( $args = array() ) {
+		// @since 0.7.0 — transient-wrapped.
+		$limit       = isset( $args['limit'] ) ? max( 1, (int) $args['limit'] ) : 10;
+		$cat         = isset( $args['category_id'] ) ? (int) $args['category_id'] : 0;
+		$cache_key   = AIFirst_Cache::key( sprintf( 'leaderboard_%d_%d', $limit, $cat ) );
+		$cached      = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return $cached;
+		}
+
 		global $wpdb;
 		$meta  = $wpdb->prefix . 'aifirst_tool_meta';
 		$posts = $wpdb->posts;
-
-		$limit = isset( $args['limit'] ) ? max( 1, (int) $args['limit'] ) : 10;
 
 		$where  = array( "p.post_status = 'publish'", "p.post_type = 'aifirst_tool'" );
 		$params = array();
@@ -456,6 +506,7 @@ class AIFirst_Query {
 				)
 			);
 			if ( empty( $ids ) ) {
+				set_transient( $cache_key, array(), HOUR_IN_SECONDS );
 				return array();
 			}
 			$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
@@ -473,7 +524,9 @@ class AIFirst_Query {
 			LIMIT %d";
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		return $wpdb->get_results( $wpdb->prepare( $sql, $params ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $params ) );
+		set_transient( $cache_key, $rows, HOUR_IN_SECONDS );
+		return $rows;
 	}
 
 	/**
@@ -567,6 +620,12 @@ class AIFirst_Query {
 		if ( '' === $tool_id ) {
 			return array();
 		}
+		// @since 0.7.0 — transient-wrapped.
+		$cache_key = AIFirst_Cache::key( 'cmp_for_' . $tool_id . '_' . (int) $limit );
+		$cached    = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return $cached;
+		}
 		global $wpdb;
 		// JSON stored as a slug array like ["jasper","grammarly"] — a slug
 		// is URL-safe so double-quote wrapping is safe to match on.
@@ -588,9 +647,10 @@ class AIFirst_Query {
 			)
 		);
 		if ( empty( $ids ) ) {
+			set_transient( $cache_key, array(), HOUR_IN_SECONDS );
 			return array();
 		}
-		return get_posts(
+		$posts_out = get_posts(
 			array(
 				'post_type'   => AIFirst_Comparison::POST_TYPE,
 				'post_status' => 'publish',
@@ -598,6 +658,8 @@ class AIFirst_Query {
 				'orderby'     => 'post__in',
 			)
 		);
+		set_transient( $cache_key, $posts_out, HOUR_IN_SECONDS );
+		return $posts_out;
 	}
 
 	/**
@@ -663,7 +725,13 @@ class AIFirst_Query {
 	 * @return WP_Post[]
 	 */
 	public static function trending_comparisons( $limit = 6 ) {
-		return get_posts(
+		// @since 0.7.0 — transient-wrapped.
+		$cache_key = AIFirst_Cache::key( 'trending_cmp_' . (int) $limit );
+		$cached    = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return $cached;
+		}
+		$posts_out = get_posts(
 			array(
 				'post_type'      => AIFirst_Comparison::POST_TYPE,
 				'post_status'    => 'publish',
@@ -672,6 +740,8 @@ class AIFirst_Query {
 				'order'          => 'DESC',
 			)
 		);
+		set_transient( $cache_key, $posts_out, HOUR_IN_SECONDS );
+		return $posts_out;
 	}
 
 	/**

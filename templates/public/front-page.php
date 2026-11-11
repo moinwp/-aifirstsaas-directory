@@ -12,7 +12,6 @@ get_header();
 
 $counters  = AIFirst_Query::counters();
 $recent    = AIFirst_Query::radar_recent( array( 'limit' => 6, 'days' => 14 ) );
-$leaders   = AIFirst_Query::leaderboard( array( 'limit' => 8 ) );
 $faq       = AIFirst_Query::faq();
 $universal = get_terms(
 	array(
@@ -92,31 +91,32 @@ $universal = get_terms(
 			</div>
 		</section>
 
-		<section style="margin:40px 0;">
+		<?php
+		// Below-the-fold sections lazy-load via REST — the leaderboard
+		// and trending rails re-query every render otherwise.
+		// @since 0.7.0
+		$aifirst_lazy_leader = array(
+			'url'       => esc_url_raw( rest_url( AIFirst_REST::NAMESPACE_V1 . '/home-section/leaderboard' ) ),
+			'errorText' => __( 'Could not load the leaderboard.', 'aifirstsaas' ),
+		);
+		$aifirst_lazy_trend  = array(
+			'url'       => esc_url_raw( rest_url( AIFirst_REST::NAMESPACE_V1 . '/home-section/trending' ) ),
+			'errorText' => __( 'Could not load trending comparisons.', 'aifirstsaas' ),
+		);
+		?>
+		<section style="margin:40px 0;" x-data="AIFirstLazy(<?php echo esc_attr( wp_json_encode( $aifirst_lazy_leader ) ); ?>)" x-init="init()">
 			<h2 class="aifirst-h2"><?php esc_html_e( 'Highest AI maturity right now', 'aifirstsaas' ); ?></h2>
 			<p class="aifirst-lead"><?php esc_html_e( 'Scored on native integration, plan availability, feature stability, and workflow coverage.', 'aifirstsaas' ); ?></p>
-			<?php if ( empty( $leaders ) ) : ?>
-				<p class="aifirst-lead"><?php esc_html_e( 'No scored tools yet.', 'aifirstsaas' ); ?></p>
-			<?php else : ?>
-				<div>
-					<?php foreach ( $leaders as $i => $l ) : ?>
-						<a href="<?php echo esc_url( get_permalink( (int) $l->post_id ) ); ?>" style="display:flex; align-items:center; gap:14px; padding:10px 6px; border-bottom:1px solid var(--aif-border); color:inherit;">
-							<span style="width:18px; color:var(--aif-sub); font-size:12px;"><?php echo esc_html( $i + 1 ); ?></span>
-							<?php AIFirst_Components::avatar( (int) $l->post_id, $l->initials, $l->avatar_color, 28 ); ?>
-							<div style="flex:1; min-width:0;">
-								<div style="font-weight:700;"><?php echo esc_html( $l->post_title ); ?></div>
-							</div>
-							<?php AIFirst_Components::maturity_bars( (int) $l->ai_maturity_score ); ?>
-							<span style="font-weight:700; width:36px; text-align:right;"><?php echo esc_html( (int) $l->ai_maturity_score ); ?></span>
-						</a>
-					<?php endforeach; ?>
-				</div>
-			<?php endif; ?>
+			<div x-show="loading" x-cloak><p class="aifirst-lead"><?php esc_html_e( 'Loading…', 'aifirstsaas' ); ?></p></div>
+			<div x-show="error" x-text="error" x-cloak class="aifirst-lead"></div>
+			<div x-show="loaded" x-html="html" x-cloak></div>
 		</section>
 
-		<section style="margin:40px 0;">
+		<section style="margin:40px 0;" x-data="AIFirstLazy(<?php echo esc_attr( wp_json_encode( $aifirst_lazy_trend ) ); ?>)" x-init="init()">
 			<h2 class="aifirst-h2"><?php esc_html_e( 'Trending Comparisons', 'aifirstsaas' ); ?></h2>
-			<?php AIFirst_Components::trending_comparisons( 6 ); ?>
+			<div x-show="loading" x-cloak><p class="aifirst-lead"><?php esc_html_e( 'Loading…', 'aifirstsaas' ); ?></p></div>
+			<div x-show="error" x-text="error" x-cloak class="aifirst-lead"></div>
+			<div x-show="loaded" x-html="html" x-cloak></div>
 			<p style="margin-top:14px;">
 				<a href="<?php echo esc_url( home_url( '/compare/' ) ); ?>" class="aifirst-btn"><?php esc_html_e( 'Compare any two tools →', 'aifirstsaas' ); ?></a>
 			</p>

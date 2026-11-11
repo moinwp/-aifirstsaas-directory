@@ -70,6 +70,9 @@ class AIFirst_Plugin {
 		( new AIFirst_Submissions() )->register();
 		( new AIFirst_Reports() )->register();
 
+		// Session 7: cache coordinator.
+		( new AIFirst_Cache() )->register();
+
 		// Session 5: comparison CPT, admin inboxes, subscribers, blog.
 		( new AIFirst_Comparison() )->register();
 		( new AIFirst_Subscribers() )->register();

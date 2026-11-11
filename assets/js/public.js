@@ -344,6 +344,55 @@
 		};
 	};
 
+	/**
+	 * Lazy-load a plugin-rendered section via REST on scroll-into-view.
+	 *
+	 * @since 0.7.0
+	 */
+	window.AIFirstLazy = function ( config ) {
+		return {
+			loaded:  false,
+			loading: false,
+			html:    '',
+			error:   '',
+			init() {
+				const root = this.$root;
+				if ( ! root || typeof IntersectionObserver === 'undefined' ) {
+					// Fallback: load immediately.
+					this.load();
+					return;
+				}
+				const io = new IntersectionObserver( ( entries ) => {
+					for ( const e of entries ) {
+						if ( e.isIntersecting ) {
+							io.disconnect();
+							this.load();
+							return;
+						}
+					}
+				}, { rootMargin: '400px 0px' } );
+				io.observe( root );
+			},
+			async load() {
+				if ( this.loaded || this.loading ) { return; }
+				this.loading = true;
+				try {
+					const res = await fetch( config.url, { credentials: 'same-origin' } );
+					const data = await res.json().catch( () => null );
+					if ( data && data.ok && typeof data.html === 'string' ) {
+						this.html   = data.html;
+						this.loaded = true;
+					} else {
+						this.error = config.errorText || 'Could not load.';
+					}
+				} catch ( err ) {
+					this.error = config.errorText || 'Could not load.';
+				}
+				this.loading = false;
+			}
+		};
+	};
+
 	// Small helper for the Compare page's selector submit.
 	window.AIFirstGoCompare = function ( a, b, c ) {
 		if ( ! window.AIFirstPublic ) return;

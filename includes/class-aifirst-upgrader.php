@@ -51,6 +51,13 @@ class AIFirst_Upgrader {
 		// the next request so they bind without requiring reactivation.
 		update_option( 'aifirst_needs_rewrite_flush', 1 );
 
+		// Session 7: on every plugin upgrade, bump the cache version so
+		// any stored shape changes don't leak via a stale transient.
+		// @since 0.7.0
+		if ( class_exists( 'AIFirst_Cache' ) ) {
+			AIFirst_Cache::bump_version();
+		}
+
 		update_option( self::OPTION, AIFIRST_DB_VERSION );
 	}
 }

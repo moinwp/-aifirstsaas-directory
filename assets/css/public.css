@@ -520,6 +520,21 @@
 	text-align: center;
 }
 
+/* Lazy-loaded leaderboard row (@since 0.7.0) */
+.aifirst-leader-row {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 10px 6px;
+	border-bottom: 1px solid var(--aif-border);
+	color: inherit;
+	text-decoration: none;
+}
+.aifirst-leader-row:hover { background: var(--aif-bg2); text-decoration: none; }
+.aifirst-leader-row__rank  { width: 18px; color: var(--aif-sub); font-size: 12px; }
+.aifirst-leader-row__title { flex: 1; min-width: 0; font-weight: 700; }
+.aifirst-leader-row__score { font-weight: 700; width: 36px; text-align: right; }
+
 /* Compare matrix cells */
 .aifirst-cmp-cell--yes { color: var(--aif-good); font-weight: 700; text-align: center; }
 .aifirst-cmp-cell--no  { color: var(--aif-bad);  font-weight: 700; text-align: center; }
