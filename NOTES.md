@@ -2,6 +2,80 @@
 
 Running log of decisions and open items. Dated entries at the top.
 
+## Session 6 — My Stack (2026-11-11)
+
+Version bumped to **0.6.0**. `AIFIRST_DB_VERSION` bumped to 0.6.0 so the upgrader sets the rewrite-flush flag; no schema change this session (`create_tables()` is idempotent).
+
+### Routes
+
+- `/stack/` — reads the `aifirst_stack` cookie, renders the current viewer's stack.
+- `/stack/jasper+grammarly+hubspot/` — URL-driven, shareable; parses the `+`-separated slugs, renders that stack without touching the viewer's cookie. The page offers a **Save this stack** button that copies the shared slugs into the cookie.
+
+Both rules are registered in `AIFirst_Public::add_rewrites()`; query var `my_stack_tools` carries the URL segment. `template_include` maps `aifirst_page=stack` → `templates/public/stack.php`.
+
+### Cookie contract
+
+- Name: `aifirst_stack`
+- Value: comma-separated `tool_id` slugs, each matched to `^[a-z0-9-]+$`, deduped
+- Expiry: 180 days; `path=/`; `SameSite=Lax`; `Secure` only on HTTPS
+- Hard cap: 50 entries — the Alpine store ignores adds beyond that and surfaces a toast via the Session 4 `AIFirstToast()` helper
+- Mirror: the slug list is also written to `localStorage[aifirst_stack_v1]` so it still restores if the browser dropped the cookie but kept storage
+
+### Alpine wiring
+
+- **Store `aifStack`** — initialised on `alpine:init` from `aifReadStack()`, exposes `slugs`, `count`, `has(slug)`, `add(slug)`, `remove(slug)`. Writes go through `aifWriteStack()` which updates both the cookie and localStorage in one call.
+- **Factory `window.AIFirstStackToggle(cfg)`** — the Session 5 hotfix pattern: one small `x-data="AIFirstStackToggle(<?php json ?>)"` call, factory lives in `assets/js/public.js`. Reads `this.$store.aifStack.has(cfg.toolId)` for its `inStack` state and calls `add()`/`remove()` with the right toast.
+- **`window.AIFirstStack` helpers** — `read()`, `write()`, `clear()`, `max` — exposed for templates that need to clear the stack (the `/stack/` page's Clear-stack button).
+
+### Components
+
+- `AIFirst_Components::stack_toggle_button( $tool_id, $variant )` — renders the toggle button. `$variant` is `'card'` or `'hero'` for CSS size variants. Caller-safe: no-op when `$tool_id` is empty.
+- `AIFirst_Components::stack_header_badge()` — floating pill (top-right, fixed). Injected via `wp_footer` on every plugin-owned screen (new `AIFirst_Public::render_stack_badge()`). `x-show="$store.aifStack.count > 0"` so it hides when the stack is empty.
+- `AIFirst_Components::tool_card()` — restructured in 0.6.0: the card is now a `<div>` containing a `<a class="aifirst-tool-card__link">` plus a sibling `<button class="aifirst-stack-btn aifirst-stack-btn--card">` (buttons can't legally nest inside `<a>`). CSS keeps the exterior visual unchanged.
+
+### Query helpers (`AIFirst_Query`)
+
+All DB-side. Each one prepares every variable; each one caps result rows.
+
+- `stack_slugs_from_request()` — single source of truth for "what slugs is this request asking about". Precedence: URL segment > cookie > empty. Returns `{ slugs, source }` (source ∈ `url|cookie|empty`).
+- `stack_resolve_tool_ids( $slugs )` — maps slugs → `[ post_id => tool_meta row ]`, order preserved, published tools only.
+- `stack_aggregate_features( $input )` — unique features across the stack, native/third-party totals, count of tools with free AI, sum of `starting_price_usd`. Accepts slugs, post_ids, or already-resolved rows.
+- `stack_missing_features( $input, $limit )` — features present in the same categories but not in any stack tool, ranked by frequency. Each row also carries up to 3 top candidate tools (by maturity) so the template can render "Try: X, Y, Z".
+- `stack_category_gaps( $input, $limit )` — categories not represented, ranked by category tool count. Each row carries the top 3 tools in that category.
+
+### `/stack/` template sections
+
+1. **Your stack** — `tool_card()` grid, empty-state with top-5 popular picks when empty. **Share this stack** copies `/stack/<slugs>/` to clipboard (Alpine + `navigator.clipboard.writeText` with a `window.prompt` fallback on refusal). **Clear stack** button (cookie mode only) confirms, calls `AIFirstStack.clear()`, empties the Alpine store, reloads.
+2. **What you're already paying for** — stat strip with unique-feature count / native / third-party / free-AI tools / summed starting prices.
+3. **AI features you might be missing** — up to 10 rows, each with feature name, tool count, and "Try: top 3 tools" linking out.
+4. **Gaps in your stack** — up to 10 category cards, each linking to the category archive + listing the top 3 tools.
+
+In URL mode, the page shows a **Save this stack** button instead of Clear.
+
+### Why no server-side state
+
+The spec is explicit: no login, no DB table. Per-visitor stack lives entirely in the client (cookie + localStorage mirror). Server reads it only via `$_COOKIE['aifirst_stack']` on request, sanitises every slug with `sanitize_title`, and validates each one against `wp_aifirst_tool_meta` through `stack_resolve_tool_ids()` so a tampered cookie can't cause a bad SQL query or a non-published tool to appear.
+
+### URLs to verify
+
+| Step | URL | Expect |
+|---|---|---|
+| 1 | `/tools/jasper/` | **+ Add to my stack** in hero → click → button becomes **✓ In your stack**, badge shows "My Stack 1" |
+| 2 | `/tools/grammarly/` | Same flow, badge shows "My Stack 2" |
+| 3 | `/tools/jasper/` (reload) | Button already reads **✓ In your stack** — cookie persisted |
+| 4 | `/stack/` | "Your stack" shows Jasper + Grammarly; stat strip + missing features + gaps rendered |
+| 5 | Click **Share this stack** | Clipboard carries `https://…/stack/jasper+grammarly/` |
+| 6 | Open that URL in incognito | Same stack, no cookie set (observe `/stack/` in incognito is empty) |
+| 7 | In incognito, click **Save this stack** | Cookie set, badge count updates |
+| 8 | Click **Clear stack** (cookie mode only) | Confirmation → cookie cleared → empty state with popular picks |
+| 9 | Toggle 51 different tools | 51st click is rejected with a "stack is full" toast |
+
+### Deferred / simplified
+
+- **Theme-header link** — spec allows a floating pill as a fallback "if the theme doesn't let you hook it". No theme hook is portable across classic + block themes, so the plugin ships only the floating pill. A theme can still render its own link; the badge coexists.
+- **Monthly cost estimate** — summed `starting_price_usd` is a lower-bound estimate (pricing often scales with seats, annual vs monthly, etc.). Surfaced as "Starting at …" so the label matches the honesty of the data.
+- **No `aifirst_stack_meta` admin-side analytics** — stacks are client-only by design; if we ever want "N users have Jasper in their stack", we'd add an opt-in, consented endpoint later.
+
 ## Session 0.5.1 — Hotfix (2026-11-11)
 
 Version bumped to **0.5.1**. No schema change, no `AIFIRST_DB_VERSION` bump.

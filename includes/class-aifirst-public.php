@@ -24,6 +24,7 @@ class AIFirst_Public {
 	const QV_CMP_A = 'aifirst_cmp_a';
 	const QV_CMP_B = 'aifirst_cmp_b';
 	const QV_CMP_C = 'aifirst_cmp_c';
+	const QV_STACK = 'my_stack_tools';
 
 	/**
 	 * Register rewrites, query vars, template_include, assets.
@@ -37,6 +38,21 @@ class AIFirst_Public {
 		add_filter( 'template_include', array( $this, 'template_include' ), 50 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'init', array( $this, 'maybe_flush_rewrites' ), 99 );
+		add_action( 'wp_footer', array( $this, 'render_stack_badge' ) );
+	}
+
+	/**
+	 * Inject the floating "My Stack (N)" badge on plugin-owned pages.
+	 * Works on any theme without needing a header hook.
+	 *
+	 * @since 0.6.0
+	 * @return void
+	 */
+	public function render_stack_badge() {
+		if ( ! $this->is_plugin_screen() ) {
+			return;
+		}
+		AIFirst_Components::stack_header_badge();
 	}
 
 	/**
@@ -49,6 +65,15 @@ class AIFirst_Public {
 		add_rewrite_rule( '^changelog/?$', 'index.php?' . self::QV_PAGE . '=changelog', 'top' );
 		add_rewrite_rule( '^submit/?$',    'index.php?' . self::QV_PAGE . '=submit',    'top' );
 		add_rewrite_rule( '^features/?$',  'index.php?' . self::QV_PAGE . '=features-index', 'top' );
+
+		// My Stack: cookie-driven /stack/ + URL-driven /stack/slug+slug+…/.
+		// @since 0.6.0
+		add_rewrite_rule( '^stack/?$', 'index.php?' . self::QV_PAGE . '=stack', 'top' );
+		add_rewrite_rule(
+			'^stack/([^/]+)/?$',
+			'index.php?' . self::QV_PAGE . '=stack&' . self::QV_STACK . '=$matches[1]',
+			'top'
+		);
 
 		add_rewrite_rule(
 			'^compare(?:/([^/]+))?(?:/([^/]+))?(?:/([^/]+))?/?$',
@@ -69,6 +94,7 @@ class AIFirst_Public {
 		$vars[] = self::QV_CMP_A;
 		$vars[] = self::QV_CMP_B;
 		$vars[] = self::QV_CMP_C;
+		$vars[] = self::QV_STACK;
 		return $vars;
 	}
 
@@ -126,6 +152,7 @@ class AIFirst_Public {
 				'submit'          => 'submit.php',
 				'features-index'  => 'features-index.php',
 				'compare'         => 'compare.php',
+				'stack'           => 'stack.php',
 			);
 			return isset( $map[ $page ] ) ? $map[ $page ] : '';
 		}

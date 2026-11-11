@@ -160,14 +160,21 @@ class AIFirst_Components {
 			}
 		}
 
-		echo '<a class="aifirst-tool-card" href="' . esc_url( get_permalink( $post ) ) . '">';
-		self::avatar( $post->ID, $meta ? $meta->initials : '', $meta ? $meta->avatar_color : '', 38 );
-		echo '<div class="aifirst-tool-card__body">';
-		echo '<div class="aifirst-tool-card__title">' . esc_html( get_the_title( $post ) ) . '</div>';
-		echo '<div class="aifirst-tool-card__cat">' . esc_html( $cat ? $cat->name : '' ) . '</div>';
-		echo '</div>';
+		// 0.6.0: cards are now <div> containing a link-area and a sibling
+		// stack-toggle button. Buttons cannot be legal children of an <a>,
+		// so the card is composed, not nested.
+		$tool_id  = $meta ? (string) $meta->tool_id : '';
+		$permalink = get_permalink( $post );
 
-		echo '<div class="aifirst-tool-card__meta">';
+		echo '<div class="aifirst-tool-card">';
+		echo '<a class="aifirst-tool-card__link" href="' . esc_url( $permalink ) . '">';
+		self::avatar( $post->ID, $meta ? $meta->initials : '', $meta ? $meta->avatar_color : '', 38 );
+		echo '<span class="aifirst-tool-card__body">';
+		echo '<span class="aifirst-tool-card__title">' . esc_html( get_the_title( $post ) ) . '</span>';
+		echo '<span class="aifirst-tool-card__cat">' . esc_html( $cat ? $cat->name : '' ) . '</span>';
+		echo '</span>';
+
+		echo '<span class="aifirst-tool-card__meta">';
 		if ( $meta ) {
 			echo '<span class="aifirst-tool-card__score">' . esc_html( (int) $meta->ai_maturity_score ) . '/10</span>';
 			self::maturity_bars( (int) $meta->ai_maturity_score );
@@ -179,8 +186,14 @@ class AIFirst_Components {
 			}
 		}
 		echo '<span class="aifirst-tool-card__view">' . esc_html__( 'View →', 'aifirstsaas' ) . '</span>';
-		echo '</div>';
+		echo '</span>';
 		echo '</a>';
+
+		if ( '' !== $tool_id ) {
+			self::stack_toggle_button( $tool_id, 'card' );
+		}
+
+		echo '</div>';
 	}
 
 	/**
@@ -448,6 +461,59 @@ class AIFirst_Components {
 	 * @param string[] $tool_ids tool_id slugs.
 	 * @return void
 	 */
+	/**
+	 * Add-to-stack button. Reads/writes the aifirst_stack cookie entirely
+	 * on the client via the AIFirstStackToggle Alpine factory and the
+	 * shared Alpine.store('stack'). No AJAX, no server round-trip.
+	 *
+	 * @since 0.6.0
+	 * @param string $tool_id tool_id slug.
+	 * @param string $variant 'card' or 'hero'.
+	 * @return void
+	 */
+	public static function stack_toggle_button( $tool_id, $variant = 'hero' ) {
+		$tool_id = sanitize_title( (string) $tool_id );
+		if ( '' === $tool_id ) {
+			return;
+		}
+		$cfg = array(
+			'toolId'      => $tool_id,
+			'addLabel'    => __( '+ Add to my stack', 'aifirstsaas' ),
+			'inLabel'     => __( '✓ In your stack', 'aifirstsaas' ),
+			'fullMsg'     => __( 'Your stack is full (max 50 tools).', 'aifirstsaas' ),
+			'addedMsg'    => __( 'Added to your stack.', 'aifirstsaas' ),
+			'removedMsg'  => __( 'Removed from your stack.', 'aifirstsaas' ),
+		);
+		$class = 'aifirst-stack-btn aifirst-stack-btn--' . sanitize_html_class( $variant );
+		printf(
+			'<button type="button" class="%1$s" x-data="AIFirstStackToggle(%2$s)" @click.stop.prevent="toggle()" :class="inStack && \'is-in\'" x-text="inStack ? cfg.inLabel : cfg.addLabel">%3$s</button>',
+			esc_attr( $class ),
+			esc_attr( wp_json_encode( $cfg ) ),
+			esc_html( $cfg['addLabel'] )
+		);
+	}
+
+	/**
+	 * Floating header badge linking to /stack/. Count comes from the
+	 * shared Alpine.store('stack') so it updates live when any button
+	 * toggles.
+	 *
+	 * @since 0.6.0
+	 * @return void
+	 */
+	public static function stack_header_badge() {
+		$url = esc_url( home_url( '/stack/' ) );
+		?>
+		<a class="aifirst-stack-badge" href="<?php echo $url; // phpcs:ignore WordPress.Security.EscapeOutput ?>"
+			x-data="{}"
+			x-show="$store.aifStack && $store.aifStack.count > 0"
+			x-cloak>
+			<?php esc_html_e( 'My Stack', 'aifirstsaas' ); ?>
+			<span class="aifirst-stack-badge__count" x-text="$store.aifStack.count">0</span>
+		</a>
+		<?php
+	}
+
 	public static function related_tools_block( $tool_ids ) {
 		if ( empty( $tool_ids ) || ! is_array( $tool_ids ) ) {
 			return;

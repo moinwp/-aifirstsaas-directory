@@ -675,6 +675,355 @@ class AIFirst_Query {
 	}
 
 	/**
+	 * Parse the stack-slug URL segment or the aifirst_stack cookie into a
+	 * clean, deduped array of tool_id slugs.
+	 *
+	 * Precedence: URL slug segment wins; otherwise fall back to the cookie.
+	 *
+	 * @since 0.6.0
+	 * @return array{slugs:string[], source:string}
+	 */
+	public static function stack_slugs_from_request() {
+		$raw = get_query_var( AIFirst_Public::QV_STACK );
+		if ( ! empty( $raw ) ) {
+			$parts  = explode( '+', (string) $raw );
+			$source = 'url';
+		} elseif ( isset( $_COOKIE['aifirst_stack'] ) ) {
+			$parts  = explode( ',', (string) wp_unslash( $_COOKIE['aifirst_stack'] ) );
+			$source = 'cookie';
+		} else {
+			return array( 'slugs' => array(), 'source' => 'empty' );
+		}
+
+		$clean = array();
+		foreach ( $parts as $p ) {
+			$slug = sanitize_title( (string) $p );
+			if ( '' === $slug || in_array( $slug, $clean, true ) ) {
+				continue;
+			}
+			$clean[] = $slug;
+			if ( count( $clean ) >= 50 ) {
+				break;
+			}
+		}
+		return array( 'slugs' => $clean, 'source' => $source );
+	}
+
+	/**
+	 * Resolve slugs to [ post_id => (object) tool_meta row ] for published
+	 * tools only. Order of result follows order of input slugs.
+	 *
+	 * @since 0.6.0
+	 * @param string[] $slugs tool_id slugs.
+	 * @return array<int, object>
+	 */
+	public static function stack_resolve_tool_ids( array $slugs ) {
+		$slugs = array_values( array_filter( array_map( 'sanitize_title', $slugs ) ) );
+		if ( empty( $slugs ) ) {
+			return array();
+		}
+		global $wpdb;
+		$meta  = $wpdb->prefix . 'aifirst_tool_meta';
+		$posts = $wpdb->posts;
+
+		$placeholders = implode( ',', array_fill( 0, count( $slugs ), '%s' ) );
+		$sql          = "SELECT m.*, p.post_title FROM {$meta} m
+			INNER JOIN {$posts} p ON p.ID = m.post_id
+			WHERE m.tool_id IN ({$placeholders})
+			AND p.post_type = 'aifirst_tool'
+			AND p.post_status = 'publish'";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $slugs ) );
+
+		// Re-order to match input order.
+		$by_slug = array();
+		foreach ( (array) $rows as $r ) {
+			$by_slug[ $r->tool_id ] = $r;
+		}
+		$out = array();
+		foreach ( $slugs as $s ) {
+			if ( isset( $by_slug[ $s ] ) ) {
+				$out[ (int) $by_slug[ $s ]->post_id ] = $by_slug[ $s ];
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Aggregate unique features across a list of tools.
+	 *
+	 * @since 0.6.0
+	 * @param int[]|string[] $post_ids_or_slugs post IDs or tool slugs.
+	 * @return array{
+	 *     features: array<string,object>, native: int, third_party: int,
+	 *     total_unique: int, tools_with_free_ai: int, starting_price_sum: float
+	 * }
+	 */
+	public static function stack_aggregate_features( array $post_ids_or_slugs ) {
+		$resolved = self::stack_input_to_rows( $post_ids_or_slugs );
+		$out      = array(
+			'features'           => array(),
+			'native'             => 0,
+			'third_party'        => 0,
+			'total_unique'       => 0,
+			'tools_with_free_ai' => 0,
+			'starting_price_sum' => 0.0,
+		);
+		if ( empty( $resolved ) ) {
+			return $out;
+		}
+
+		global $wpdb;
+		$tf = $wpdb->prefix . 'aifirst_tool_features';
+
+		$tool_ids = array();
+		foreach ( $resolved as $r ) {
+			$tool_ids[] = $r->tool_id;
+			if ( 1 === (int) $r->ai_on_free_plan ) {
+				$out['tools_with_free_ai']++;
+			}
+			if ( null !== $r->starting_price_usd ) {
+				$out['starting_price_sum'] += (float) $r->starting_price_usd;
+			}
+		}
+
+		$placeholders = implode( ',', array_fill( 0, count( $tool_ids ), '%s' ) );
+		$sql          = "SELECT feature_slug, feature_name, is_native, COUNT(*) AS tool_count
+			FROM {$tf} WHERE tool_id IN ({$placeholders})
+			GROUP BY feature_slug, feature_name, is_native
+			ORDER BY tool_count DESC, feature_name ASC";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $tool_ids ) );
+
+		foreach ( (array) $rows as $r ) {
+			$slug = (string) $r->feature_slug;
+			if ( ! isset( $out['features'][ $slug ] ) ) {
+				$out['features'][ $slug ] = (object) array(
+					'feature_slug' => $slug,
+					'feature_name' => (string) $r->feature_name,
+					'is_native'    => (int) $r->is_native,
+					'tool_count'   => 0,
+				);
+			}
+			$out['features'][ $slug ]->tool_count += (int) $r->tool_count;
+			if ( (int) $r->is_native ) {
+				$out['native'] += (int) $r->tool_count;
+			} else {
+				$out['third_party'] += (int) $r->tool_count;
+			}
+		}
+		$out['total_unique'] = count( $out['features'] );
+		return $out;
+	}
+
+	/**
+	 * Features that are present in the same categories as the stack, but
+	 * not present in any tool in the stack. Ranked by how many tools in
+	 * those categories offer the feature (frequency = priority).
+	 *
+	 * @since 0.6.0
+	 * @param int[]|string[] $post_ids_or_slugs Current stack.
+	 * @param int            $limit             Max rows.
+	 * @return object[] Each: feature_slug, feature_name, tool_count, top_tools[]
+	 */
+	public static function stack_missing_features( array $post_ids_or_slugs, $limit = 10 ) {
+		$resolved = self::stack_input_to_rows( $post_ids_or_slugs );
+		if ( empty( $resolved ) ) {
+			return array();
+		}
+
+		// Categories currently represented.
+		$post_ids_in_stack = array_keys( $resolved );
+		$tool_ids_in_stack = array_map( static function ( $r ) { return $r->tool_id; }, array_values( $resolved ) );
+
+		$category_ids = array();
+		foreach ( $post_ids_in_stack as $pid ) {
+			$terms = get_the_terms( (int) $pid, 'aifirst_category' );
+			if ( ! $terms || is_wp_error( $terms ) ) { continue; }
+			foreach ( $terms as $t ) {
+				$category_ids[ (int) $t->term_id ] = true;
+			}
+		}
+		if ( empty( $category_ids ) ) {
+			return array();
+		}
+
+		// All published tools in those categories.
+		$candidate_posts = get_posts(
+			array(
+				'post_type'      => 'aifirst_tool',
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'tax_query'      => array(
+					array(
+						'taxonomy' => 'aifirst_category',
+						'field'    => 'term_id',
+						'terms'    => array_keys( $category_ids ),
+					),
+				),
+			)
+		);
+		$candidate_posts = array_diff( $candidate_posts, $post_ids_in_stack );
+		if ( empty( $candidate_posts ) ) {
+			return array();
+		}
+
+		global $wpdb;
+		$meta = $wpdb->prefix . 'aifirst_tool_meta';
+		$tf   = $wpdb->prefix . 'aifirst_tool_features';
+
+		// Map candidate post_ids → tool_ids.
+		$pid_placeholders = implode( ',', array_fill( 0, count( $candidate_posts ), '%d' ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$cand_slugs = $wpdb->get_col(
+			$wpdb->prepare( "SELECT tool_id FROM {$meta} WHERE post_id IN ({$pid_placeholders})", $candidate_posts )
+		);
+		if ( empty( $cand_slugs ) ) {
+			return array();
+		}
+
+		$slug_placeholders = implode( ',', array_fill( 0, count( $cand_slugs ), '%s' ) );
+		$stack_placeholders = implode( ',', array_fill( 0, count( $tool_ids_in_stack ), '%s' ) );
+		$sql = "SELECT feature_slug, feature_name, COUNT(DISTINCT tool_id) AS tool_count
+			FROM {$tf}
+			WHERE tool_id IN ({$slug_placeholders})
+			AND feature_slug NOT IN (
+				SELECT feature_slug FROM {$tf} WHERE tool_id IN ({$stack_placeholders})
+			)
+			GROUP BY feature_slug, feature_name
+			ORDER BY tool_count DESC, feature_name ASC
+			LIMIT %d";
+
+		$params = array_merge( $cand_slugs, $tool_ids_in_stack, array( (int) $limit ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $params ) );
+
+		// For each missing feature, surface up to 3 top tools that have it.
+		foreach ( (array) $rows as &$r ) {
+			$top_slugs = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT f.tool_id FROM {$tf} f
+					INNER JOIN {$meta} m ON m.tool_id = f.tool_id
+					WHERE f.feature_slug = %s
+					AND f.tool_id IN ({$slug_placeholders})
+					ORDER BY COALESCE(m.ai_maturity_score, 0) DESC
+					LIMIT 3",
+					array_merge( array( $r->feature_slug ), $cand_slugs )
+				)
+			);
+			$r->top_tools = array();
+			foreach ( (array) $top_slugs as $slug ) {
+				$row = self::tool_meta_by_id( $slug );
+				if ( $row ) {
+					$r->top_tools[] = (object) array(
+						'tool_id'   => $slug,
+						'name'      => get_the_title( (int) $row->post_id ),
+						'permalink' => get_permalink( (int) $row->post_id ),
+					);
+				}
+			}
+		}
+		unset( $r );
+
+		return (array) $rows;
+	}
+
+	/**
+	 * Categories NOT represented in the current stack, ranked by the
+	 * category's tool count (biggest gaps first).
+	 *
+	 * @since 0.6.0
+	 * @param int[]|string[] $post_ids_or_slugs Current stack.
+	 * @param int            $limit             Max rows.
+	 * @return object[] Each: term, tool_count, top_tools[]
+	 */
+	public static function stack_category_gaps( array $post_ids_or_slugs, $limit = 10 ) {
+		$resolved = self::stack_input_to_rows( $post_ids_or_slugs );
+
+		$have = array();
+		foreach ( array_keys( $resolved ) as $pid ) {
+			$terms = get_the_terms( (int) $pid, 'aifirst_category' );
+			if ( ! $terms || is_wp_error( $terms ) ) { continue; }
+			foreach ( $terms as $t ) {
+				$have[ (int) $t->term_id ] = true;
+			}
+		}
+
+		$all = get_terms(
+			array(
+				'taxonomy'   => 'aifirst_category',
+				'hide_empty' => true,
+			)
+		);
+		if ( is_wp_error( $all ) || empty( $all ) ) {
+			return array();
+		}
+
+		$gaps = array();
+		foreach ( $all as $t ) {
+			if ( isset( $have[ (int) $t->term_id ] ) ) {
+				continue;
+			}
+			$gaps[] = $t;
+		}
+		if ( empty( $gaps ) ) {
+			return array();
+		}
+
+		usort( $gaps, static function ( $a, $b ) { return (int) $b->count - (int) $a->count; } );
+		$gaps = array_slice( $gaps, 0, (int) $limit );
+
+		$out = array();
+		foreach ( $gaps as $t ) {
+			$top = self::leaderboard( array( 'category_id' => (int) $t->term_id, 'limit' => 3 ) );
+			$out[] = (object) array(
+				'term'       => $t,
+				'tool_count' => (int) $t->count,
+				'top_tools'  => $top,
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * Accept either [post_id => row] arrays or a list of slugs; resolve
+	 * to [post_id => tool_meta row].
+	 *
+	 * @since 0.6.0
+	 * @param mixed[] $input Mixed slugs and/or post ids.
+	 * @return array<int, object>
+	 */
+	protected static function stack_input_to_rows( array $input ) {
+		if ( empty( $input ) ) {
+			return array();
+		}
+		// If first element looks numeric treat as post_ids.
+		$first = reset( $input );
+		if ( is_object( $first ) && isset( $first->tool_id ) ) {
+			$out = array();
+			foreach ( $input as $row ) {
+				$out[ (int) $row->post_id ] = $row;
+			}
+			return $out;
+		}
+		if ( is_numeric( $first ) && ! is_string( $first ) ) {
+			global $wpdb;
+			$meta         = $wpdb->prefix . 'aifirst_tool_meta';
+			$placeholders = implode( ',', array_fill( 0, count( $input ), '%d' ) );
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$meta} WHERE post_id IN ({$placeholders})", $input ) );
+			$out  = array();
+			foreach ( (array) $rows as $r ) {
+				$out[ (int) $r->post_id ] = $r;
+			}
+			return $out;
+		}
+		return self::stack_resolve_tool_ids( array_map( 'strval', $input ) );
+	}
+
+	/**
 	 * Split a JSON-encoded list back into a PHP array (safe).
 	 *
 	 * @since 0.4.0

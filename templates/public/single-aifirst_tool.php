@@ -96,6 +96,7 @@ $cat  = ( $cats && ! is_wp_error( $cats ) ) ? $cats[0] : null;
 				<a href="<?php echo esc_url( home_url( '/compare/' . rawurlencode( $tool_id ) . '/' ) ); ?>" class="aifirst-btn">
 					<?php esc_html_e( '+ Compare', 'aifirstsaas' ); ?>
 				</a>
+				<?php AIFirst_Components::stack_toggle_button( $tool_id, 'hero' ); ?>
 			</div>
 		</header>
 
