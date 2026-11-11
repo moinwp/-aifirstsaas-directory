@@ -70,8 +70,9 @@ class AIFirst_Plugin {
 		( new AIFirst_Submissions() )->register();
 		( new AIFirst_Reports() )->register();
 
-		// Session 7: cache coordinator.
+		// Session 7: cache coordinator + Schema.org emitter.
 		( new AIFirst_Cache() )->register();
+		( new AIFirst_Schema() )->register();
 
 		// Session 5: comparison CPT, admin inboxes, subscribers, blog.
 		( new AIFirst_Comparison() )->register();
