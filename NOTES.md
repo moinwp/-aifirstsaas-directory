@@ -2,6 +2,29 @@
 
 Running log of decisions and open items. Dated entries at the top.
 
+## Session 0.5.1 — Hotfix (2026-11-11)
+
+Version bumped to **0.5.1**. No schema change, no `AIFIRST_DB_VERSION` bump.
+
+### Changed
+
+- **Fix 1 — Blog metabox context.** `AIFirst_Blog::add_metabox()` now registers the "Related AI tools" box with context `'normal'` (was `'side'`). Gutenberg renders `'side'` boxes in a drawer that is sometimes hidden or won't expand; `'normal'` puts the box below the main editor as an always-expanded section.
+- Added a defensive `ensure_post_type_support()` on `init` priority 20 that calls `add_post_type_support( 'post', 'custom-fields' )` when a theme / another plugin has stripped it. Core keeps it on by default, so this is belt-and-braces.
+
+### Verified only (no code changes)
+
+- **Fix 2 — "Related comparisons" sidebar.** Already correct. Session 5 stores the comparison tool_ids via `wp_json_encode()`, which produces `["jasper","grammarly"]`. WordPress's `maybe_serialize()` leaves string values alone, so the stored `meta_value` is that same JSON string verbatim — **not** PHP's `a:2:{…}` format. The `LIKE %"<slug>"%` needle in `AIFirst_Query::comparisons_for_tool()` and `comparison_for_tool_pair()` matches correctly. Verified with a round-trip check locally.
+
+### How to verify locally
+
+| Fix | URL | Expected |
+|---|---|---|
+| 1 | `wp-admin/post-new.php` | "Related AI tools" box appears expanded **below** the main editor |
+| 1 | Publish a post with `jasper, grammarly` in the box, then visit it on the frontend | Post renders a "Related AI tools" block at the end with tool cards for both |
+| 2 | `/tool/jasper/` | "Related comparisons" sidebar card lists the Jasper vs Grammarly comparison |
+| 2 | `/tool/grammarly/` | Same comparison appears |
+| 2 | `/tool/mailchimp/` (no comparison references it) | No "Related comparisons" card (block hides when the list is empty) |
+
 ## Session 5 — Comparisons, admin inboxes, subscribers, blog (2026-11-09)
 
 Version bumped to **0.5.0**. `AIFIRST_DB_VERSION` is `0.5.0` — the upgrader auto-adds the new `aifirst_subscribers` table + `reviewed_at` columns + backfills `pending → new` on the next admin page load.

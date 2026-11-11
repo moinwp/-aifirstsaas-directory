@@ -31,10 +31,25 @@ class AIFirst_Blog {
 	 * @return void
 	 */
 	public function register() {
+		add_action( 'init', array( $this, 'ensure_post_type_support' ), 20 );
 		add_action( 'add_meta_boxes_post', array( $this, 'add_metabox' ) );
 		add_action( 'save_post_post', array( $this, 'save_meta' ), 10, 2 );
 		add_filter( 'the_content', array( $this, 'maybe_append_related' ), 50 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'maybe_enqueue_public_assets' ) );
+	}
+
+	/**
+	 * Make sure core posts declare custom-fields support — some Gutenberg
+	 * skins hide third-party metaboxes that sit beside a post type with
+	 * no custom-fields declaration. Core adds it by default; defensive.
+	 *
+	 * @since 0.5.1
+	 * @return void
+	 */
+	public function ensure_post_type_support() {
+		if ( ! post_type_supports( 'post', 'custom-fields' ) ) {
+			add_post_type_support( 'post', 'custom-fields' );
+		}
 	}
 
 	/**
@@ -44,12 +59,16 @@ class AIFirst_Blog {
 	 * @return void
 	 */
 	public function add_metabox() {
+		// Gutenberg renders 'side' metaboxes in a collapsed drawer that
+		// sometimes won't expand; 'normal' puts us below the main editor
+		// as an always-expanded section.
+		// @since 0.5.1
 		add_meta_box(
 			'aifirst-related-tools',
 			__( 'Related AI tools', 'aifirstsaas' ),
 			array( $this, 'render_metabox' ),
 			'post',
-			'side',
+			'normal',
 			'default'
 		);
 	}
