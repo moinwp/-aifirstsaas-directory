@@ -43,12 +43,16 @@ $share_url = home_url( '/stack/' . rawurlencode( implode( '+', array_map( static
 
 		<header style="display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:10px;">
 			<h1 class="aifirst-h1"><?php esc_html_e( 'My Stack', 'aifirstsaas' ); ?></h1>
-			<?php if ( $is_url_mode && ! $empty ) : ?>
-				<button type="button" class="aifirst-btn" x-data="{}"
-					@click="$store.aifStack.slugs.splice(0, $store.aifStack.slugs.length); <?php echo esc_js( implode( ';', array_map(
-						static function ( $r ) { return "\$store.aifStack.add('" . esc_js( $r->tool_id ) . "')"; },
-						array_values( $rows )
-					) ) ); ?>; window.AIFirstToast && window.AIFirstToast('<?php echo esc_js( __( 'Saved to your stack.', 'aifirstsaas' ) ); ?>');">
+			<?php if ( $is_url_mode && ! $empty ) :
+				$aifirst_save_cfg = array(
+					'slugs'       => array_values( array_map( static function ( $r ) { return $r->tool_id; }, $rows ) ),
+					'successText' => __( 'Saved to your stack.', 'aifirstsaas' ),
+					'fullText'    => __( 'Saved what fit — stack is full at 50 tools.', 'aifirstsaas' ),
+				);
+				?>
+				<button type="button" class="aifirst-btn"
+					x-data="AIFirstSaveStack(<?php echo esc_attr( wp_json_encode( $aifirst_save_cfg ) ); ?>)"
+					@click="save()">
 					<?php esc_html_e( 'Save this stack', 'aifirstsaas' ); ?>
 				</button>
 			<?php endif; ?>
@@ -96,15 +100,22 @@ $share_url = home_url( '/stack/' . rawurlencode( implode( '+', array_map( static
 					endforeach; ?>
 				</div>
 
-				<div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;" x-data="{ copied: false }">
-					<button type="button" class="aifirst-btn aifirst-btn--primary"
-						@click="try { navigator.clipboard.writeText('<?php echo esc_js( $share_url ); ?>'); copied = true; window.AIFirstToast && window.AIFirstToast('<?php echo esc_js( __( 'Share URL copied to clipboard.', 'aifirstsaas' ) ); ?>'); setTimeout(function(){ copied=false; }, 2500); } catch(e) { window.prompt('<?php echo esc_js( __( 'Copy this URL:', 'aifirstsaas' ) ); ?>', '<?php echo esc_js( $share_url ); ?>'); }">
+				<?php
+				$aifirst_share_cfg = array(
+					'shareUrl'    => esc_url_raw( $share_url ),
+					'successText' => __( 'Share URL copied to clipboard.', 'aifirstsaas' ),
+					'promptText'  => __( 'Copy this URL:', 'aifirstsaas' ),
+				);
+				?>
+				<div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;"
+					x-data="AIFirstShareStack(<?php echo esc_attr( wp_json_encode( $aifirst_share_cfg ) ); ?>)">
+					<button type="button" class="aifirst-btn aifirst-btn--primary" @click="share()">
 						<span x-show="!copied"><?php esc_html_e( 'Share this stack', 'aifirstsaas' ); ?></span>
 						<span x-show="copied" x-cloak>✓ <?php esc_html_e( 'Copied', 'aifirstsaas' ); ?></span>
 					</button>
 					<?php if ( ! $is_url_mode ) : ?>
 						<button type="button" class="aifirst-btn"
-							@click="if (confirm('<?php echo esc_js( __( 'Clear your stack?', 'aifirstsaas' ) ); ?>')) { window.AIFirstStack.clear(); $store.aifStack.slugs.splice(0, $store.aifStack.slugs.length); $store.aifStack.count = 0; window.location.reload(); }">
+							@click="if (confirm(<?php echo esc_attr( wp_json_encode( esc_html__( 'Clear your stack?', 'aifirstsaas' ) ) ); ?>)) { window.AIFirstStack.clear(); $store.aifStack.slugs.splice(0, $store.aifStack.slugs.length); $store.aifStack.count = 0; window.location.reload(); }">
 							<?php esc_html_e( 'Clear stack', 'aifirstsaas' ); ?>
 						</button>
 					<?php endif; ?>

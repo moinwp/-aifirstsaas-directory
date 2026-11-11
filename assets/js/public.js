@@ -261,6 +261,89 @@
 		};
 	};
 
+	/**
+	 * Share-stack factory. navigator.clipboard.writeText() is async and
+	 * its failures were swallowed by the old inline @click; this factory
+	 * awaits the write, falls back to execCommand('copy'), and only then
+	 * falls back to window.prompt. Toast fires on success, button flips
+	 * to "Copied" for 2.5s.
+	 *
+	 * @since 0.6.1
+	 */
+	window.AIFirstShareStack = function ( config ) {
+		return {
+			copied:    false,
+			copyError: false,
+			async share() {
+				this.copied    = false;
+				this.copyError = false;
+				const url = config.shareUrl;
+
+				// Path 1: modern async clipboard API.
+				if ( navigator.clipboard && window.isSecureContext ) {
+					try {
+						await navigator.clipboard.writeText( url );
+						this.copied = true;
+						if ( window.AIFirstToast ) { window.AIFirstToast( config.successText ); }
+						setTimeout( () => { this.copied = false; }, 2500 );
+						return;
+					} catch ( err ) {
+						// fall through to path 2
+					}
+				}
+
+				// Path 2: legacy execCommand (HTTP, older browsers).
+				try {
+					const ta = document.createElement( 'textarea' );
+					ta.value = url;
+					ta.style.position = 'fixed';
+					ta.style.left     = '-9999px';
+					document.body.appendChild( ta );
+					ta.select();
+					const ok = document.execCommand( 'copy' );
+					document.body.removeChild( ta );
+					if ( ok ) {
+						this.copied = true;
+						if ( window.AIFirstToast ) { window.AIFirstToast( config.successText ); }
+						setTimeout( () => { this.copied = false; }, 2500 );
+						return;
+					}
+				} catch ( err ) {
+					// fall through to path 3
+				}
+
+				// Path 3: last-resort prompt the viewer can copy out of.
+				window.prompt( config.promptText, url );
+			}
+		};
+	};
+
+	/**
+	 * Save-this-stack factory. In URL-shared stack mode, writes the
+	 * resolved slug list into the viewer's cookie-backed Alpine store
+	 * via the shared store's add() API, then toasts.
+	 *
+	 * @since 0.6.1
+	 */
+	window.AIFirstSaveStack = function ( config ) {
+		return {
+			save() {
+				if ( ! this.$store || ! this.$store.aifStack ) { return; }
+				// Replace the current stack with the shared one.
+				this.$store.aifStack.slugs.splice( 0, this.$store.aifStack.slugs.length );
+				const slugs = Array.isArray( config.slugs ) ? config.slugs : [];
+				let hitCap = false;
+				for ( let i = 0; i < slugs.length; i++ ) {
+					const r = this.$store.aifStack.add( slugs[ i ] );
+					if ( 'full' === r ) { hitCap = true; break; }
+				}
+				if ( window.AIFirstToast ) {
+					window.AIFirstToast( hitCap ? config.fullText : config.successText );
+				}
+			}
+		};
+	};
+
 	// Small helper for the Compare page's selector submit.
 	window.AIFirstGoCompare = function ( a, b, c ) {
 		if ( ! window.AIFirstPublic ) return;

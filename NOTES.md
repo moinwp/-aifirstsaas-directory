@@ -2,6 +2,24 @@
 
 Running log of decisions and open items. Dated entries at the top.
 
+## Session 0.6.1 — Hotfix (2026-11-11)
+
+Version bumped to **0.6.1**. No schema changes.
+
+### Changed
+
+- **Share button on `/stack/` was broken.** The old inline `@click` called `navigator.clipboard.writeText()` without `await`ing it and wrapped the rest of the handler in a synchronous `try/catch`, so a rejected promise (insecure context, a user gesture gate, a permission denial) was never caught. The button appeared to succeed but nothing landed in the clipboard, and no fallback ran.
+- Moved the Share logic to a factory `window.AIFirstShareStack(config)` in `assets/js/public.js` (same Session 5 hotfix pattern — one JSON-safe `x-data` call in the template). The factory tries three paths in order: (1) `navigator.clipboard.writeText()` with proper `await` in a secure context, (2) legacy `document.execCommand('copy')` on a hidden textarea, (3) `window.prompt()` so the viewer can copy out by hand. Success toasts and 2.5-second **Copied** state fire from the factory, not from the template.
+- Audited every other inline multi-line `@click` in `templates/public/stack.php`. Only the **Save this stack** button in URL mode qualified — moved to a parallel factory `window.AIFirstSaveStack(config)` so the slug-replay logic lives in JS, not interpolated PHP. The factory also respects the 50-slug cap and emits a different toast when the cap is hit mid-save. The **Clear stack** button stays inline: it's single-line, all-sync, and only touches the exposed `window.AIFirstStack.clear()` + store state.
+- `esc_js()` on a JS string literal was converted to `esc_attr( wp_json_encode( … ) )` in the Clear-stack confirm call for safety.
+
+### How to verify
+
+- `/stack/` with two tools → click **Share this stack** → button flips to **✓ Copied**, toast appears, paste anywhere to see `…/stack/slug+slug/`.
+- Same page served from an insecure origin (HTTP) or an older browser → the `execCommand` fallback kicks in; same toast + button flip.
+- Clipboard still refused → `window.prompt` appears with the URL pre-filled.
+- Open a shared `/stack/slug+slug/` URL in a fresh browser → click **Save this stack** → cookie is written, badge updates. If the shared URL carries more than 50 slugs, the toast says "Saved what fit — stack is full at 50 tools."
+
 ## Session 6 — My Stack (2026-11-11)
 
 Version bumped to **0.6.0**. `AIFIRST_DB_VERSION` bumped to 0.6.0 so the upgrader sets the rewrite-flush flag; no schema change this session (`create_tables()` is idempotent).
