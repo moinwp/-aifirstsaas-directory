@@ -3,49 +3,103 @@
  * @since 0.4.0
  */
 
+/*
+ * Design tokens — extracted verbatim from the canonical design file
+ * (rootStyle in the decoded artifact). @since 0.7.0
+ */
 :root {
+	/* Surfaces */
 	--aif-bg:     #FAFAF8;
-	--aif-bg2:    #F2F2EE;
+	--aif-bg2:    #F3F1EC;
 	--aif-card:   #FFFFFF;
-	--aif-border: #E5E5DF;
-	--aif-text:   #1C1C1E;
+	--aif-border: #E8E6E0;
+	/* Text */
+	--aif-text:   #1A1A1A;
 	--aif-sub:    #6B6B65;
+	/* Accent + semantic */
 	--aif-accent: #2563EB;
-	--aif-accent-weak: #DBE4FF;
+	--aif-accent-weak: #DBEAFE;
 	--aif-good:   #16A34A;
 	--aif-warn:   #F59E0B;
 	--aif-bad:    #DC2626;
-	--aif-radius: 12px;
-	--aif-radius-sm: 8px;
-	--aif-radius-pill: 20px;
-	--aif-maxw:   1440px;
+	/* Shape */
+	--aif-radius:        12px;
+	--aif-radius-sm:     8px;
+	--aif-radius-pill:   20px;
+	--aif-maxw:          1440px;
+	/* Typography scale */
+	--aif-font:          'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--aif-size-base:     14.5px;
+	--aif-line-base:     1.55;
+	--aif-size-h1:       30px;
+	--aif-size-h2:       20px;
+	--aif-size-h3:       15px;
+	--aif-size-sm:       12.5px;
+	--aif-size-xs:       11.5px;
+	--aif-weight-bold:   700;
+	--aif-weight-xbold:  800;
+	/* Spacing scale (8-pt grid) */
+	--aif-space-1: 4px;
+	--aif-space-2: 8px;
+	--aif-space-3: 12px;
+	--aif-space-4: 16px;
+	--aif-space-5: 20px;
+	--aif-space-6: 24px;
+	--aif-space-7: 32px;
+	--aif-space-8: 40px;
+	/* Shadows */
+	--aif-shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+	--aif-shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+	--aif-shadow-lg: 0 10px 40px rgba(0,0,0,0.18);
+	/* 10-bar maturity bars: each bar gets its own token so themes
+	 * can swap in a ramp. Defaults preserve the design's uniform
+	 * accent fill. --bar-off is the empty-segment color. */
+	--bar-off: var(--aif-border);
+	--bar-1:  var(--aif-accent);
+	--bar-2:  var(--aif-accent);
+	--bar-3:  var(--aif-accent);
+	--bar-4:  var(--aif-accent);
+	--bar-5:  var(--aif-accent);
+	--bar-6:  var(--aif-accent);
+	--bar-7:  var(--aif-accent);
+	--bar-8:  var(--aif-accent);
+	--bar-9:  var(--aif-accent);
+	--bar-10: var(--aif-accent);
 }
 
+/* Dark palette — same hex values the design file ships with. */
 @media (prefers-color-scheme: dark) {
 	:root:not([data-theme="light"]) {
-		--aif-bg:     #0E0E12;
-		--aif-bg2:    #17171C;
-		--aif-card:   #1C1C22;
-		--aif-border: #2A2A32;
-		--aif-text:   #ECECED;
-		--aif-sub:    #9A9AA1;
+		--aif-bg:     #171715;
+		--aif-bg2:    #1F1F1C;
+		--aif-card:   #1E1E1B;
+		--aif-border: #33322D;
+		--aif-text:   #F3F1EC;
+		--aif-sub:    #A6A399;
 		--aif-accent-weak: #1E2A5C;
 	}
 }
-
 :root[data-theme="dark"] {
-	--aif-bg:     #0E0E12;
-	--aif-bg2:    #17171C;
-	--aif-card:   #1C1C22;
-	--aif-border: #2A2A32;
-	--aif-text:   #ECECED;
-	--aif-sub:    #9A9AA1;
+	--aif-bg:     #171715;
+	--aif-bg2:    #1F1F1C;
+	--aif-card:   #1E1E1B;
+	--aif-border: #33322D;
+	--aif-text:   #F3F1EC;
+	--aif-sub:    #A6A399;
 	--aif-accent-weak: #1E2A5C;
 }
 
 [x-cloak] { display: none !important; }
 
-.aifirst-shell { background: var(--aif-bg); color: var(--aif-text); min-height: 100vh; }
+.aifirst-shell {
+	background: var(--aif-bg);
+	color: var(--aif-text);
+	min-height: 100vh;
+	font-family: var(--aif-font);
+	font-size: var(--aif-size-base);
+	line-height: var(--aif-line-base);
+	-webkit-font-smoothing: antialiased;
+}
 .aifirst-shell *, .aifirst-shell *::before, .aifirst-shell *::after { box-sizing: border-box; }
 .aifirst-shell a { color: var(--aif-accent); text-decoration: none; }
 .aifirst-shell a:hover { text-decoration: underline; }
@@ -96,9 +150,33 @@
 	width: 5px;
 	height: 14px;
 	border-radius: 1px;
-	background: var(--aif-border);
+	background: var(--bar-off);
 }
+/* On-bars pull from the per-index token so themes can ramp them. */
 .aifirst-bar--on { background: var(--aif-accent); }
+.aifirst-bar:nth-child(1).aifirst-bar--on  { background: var(--bar-1); }
+.aifirst-bar:nth-child(2).aifirst-bar--on  { background: var(--bar-2); }
+.aifirst-bar:nth-child(3).aifirst-bar--on  { background: var(--bar-3); }
+.aifirst-bar:nth-child(4).aifirst-bar--on  { background: var(--bar-4); }
+.aifirst-bar:nth-child(5).aifirst-bar--on  { background: var(--bar-5); }
+.aifirst-bar:nth-child(6).aifirst-bar--on  { background: var(--bar-6); }
+.aifirst-bar:nth-child(7).aifirst-bar--on  { background: var(--bar-7); }
+.aifirst-bar:nth-child(8).aifirst-bar--on  { background: var(--bar-8); }
+.aifirst-bar:nth-child(9).aifirst-bar--on  { background: var(--bar-9); }
+.aifirst-bar:nth-child(10).aifirst-bar--on { background: var(--bar-10); }
+
+/* The design's gradient — opt-in by adding .aifirst-bars--gradient
+ * (red → amber → green). @since 0.7.0 */
+.aifirst-bars--gradient .aifirst-bar:nth-child(1).aifirst-bar--on  { background: #DC2626; }
+.aifirst-bars--gradient .aifirst-bar:nth-child(2).aifirst-bar--on  { background: #EA580C; }
+.aifirst-bars--gradient .aifirst-bar:nth-child(3).aifirst-bar--on  { background: #F97316; }
+.aifirst-bars--gradient .aifirst-bar:nth-child(4).aifirst-bar--on  { background: #F59E0B; }
+.aifirst-bars--gradient .aifirst-bar:nth-child(5).aifirst-bar--on  { background: #FBBF24; }
+.aifirst-bars--gradient .aifirst-bar:nth-child(6).aifirst-bar--on  { background: #84CC16; }
+.aifirst-bars--gradient .aifirst-bar:nth-child(7).aifirst-bar--on  { background: #22C55E; }
+.aifirst-bars--gradient .aifirst-bar:nth-child(8).aifirst-bar--on  { background: #16A34A; }
+.aifirst-bars--gradient .aifirst-bar:nth-child(9).aifirst-bar--on  { background: #15803D; }
+.aifirst-bars--gradient .aifirst-bar:nth-child(10).aifirst-bar--on { background: #166534; }
 
 /* Pills & badges */
 .aifirst-pill {
@@ -492,6 +570,28 @@
 }
 .aifirst-tool-card__link:hover { color: inherit; text-decoration: none; }
 .aifirst-tool-card > .aifirst-stack-btn { flex: 0 0 auto; margin-left: auto; }
+
+/* Floating theme toggle (@since 0.7.0) — sits left of the stack badge */
+.aifirst-theme-toggle {
+	position: fixed;
+	top: 16px;
+	right: 128px; /* leave room for the stack badge */
+	z-index: 90;
+	padding: 8px 14px;
+	border-radius: 20px;
+	background: var(--aif-card);
+	color: var(--aif-text);
+	border: 1px solid var(--aif-border);
+	font-size: 12.5px;
+	font-weight: 600;
+	cursor: pointer;
+	box-shadow: var(--aif-shadow-md);
+}
+.aifirst-theme-toggle:hover { border-color: var(--aif-accent); color: var(--aif-accent); }
+
+@media (max-width: 720px) {
+	.aifirst-theme-toggle { right: 16px; top: 64px; }
+}
 
 /* Floating stack badge (@since 0.6.0) */
 .aifirst-stack-badge {

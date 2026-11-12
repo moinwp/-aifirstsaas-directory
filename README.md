@@ -4,7 +4,7 @@ Data and presentation layer for [aifirstsaas.com](https://aifirstsaas.com) — a
 
 ## Status
 
-**Version 0.6.0** — Session 6 (My Stack) complete. The plugin:
+**Version 0.7.0** — Session 7 (performance + schema + design polish) complete. The plugin:
 
 - Activates cleanly and creates 6 custom tables via `dbDelta()`
 - Registers the `aifirst_tool` CPT (public slug: `tools`), `aifirst_category`, and `aifirst_feature`

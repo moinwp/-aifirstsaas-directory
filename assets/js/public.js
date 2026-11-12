@@ -393,6 +393,50 @@
 		};
 	};
 
+	/**
+	 * Dark-mode toggle factory. Three-state cycle: system → light → dark.
+	 *
+	 * @since 0.7.0
+	 */
+	window.AIFirstThemeToggle = function ( config ) {
+		return {
+			cfg:   config,
+			mode:  'system',
+			label: config.systemLabel,
+			init() {
+				let stored = 'system';
+				try { stored = window.localStorage.getItem( 'aifirst_theme' ) || 'system'; } catch ( err ) { /* ignore */ }
+				if ( stored !== 'light' && stored !== 'dark' ) { stored = 'system'; }
+				this.apply( stored );
+			},
+			apply( mode ) {
+				this.mode = mode;
+				if ( 'light' === mode ) {
+					document.documentElement.setAttribute( 'data-theme', 'light' );
+					this.label = this.cfg.lightLabel;
+				} else if ( 'dark' === mode ) {
+					document.documentElement.setAttribute( 'data-theme', 'dark' );
+					this.label = this.cfg.darkLabel;
+				} else {
+					document.documentElement.removeAttribute( 'data-theme' );
+					this.label = this.cfg.systemLabel;
+				}
+				try {
+					if ( 'system' === mode ) {
+						window.localStorage.removeItem( 'aifirst_theme' );
+					} else {
+						window.localStorage.setItem( 'aifirst_theme', mode );
+					}
+				} catch ( err ) { /* ignore */ }
+			},
+			cycle() {
+				const order = [ 'system', 'light', 'dark' ];
+				const next  = order[ ( order.indexOf( this.mode ) + 1 ) % order.length ];
+				this.apply( next );
+			}
+		};
+	};
+
 	// Small helper for the Compare page's selector submit.
 	window.AIFirstGoCompare = function ( a, b, c ) {
 		if ( ! window.AIFirstPublic ) return;

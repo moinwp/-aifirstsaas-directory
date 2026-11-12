@@ -2,6 +2,99 @@
 
 Running log of decisions and open items. Dated entries at the top.
 
+## Session 7 — Performance + Schema.org + Design Polish (2026-11-12)
+
+Version bumped to **0.7.0**. `AIFIRST_DB_VERSION` also bumped to 0.7.0 so the upgrader runs `AIFirst_Cache::bump_version()` and all prior transients become orphaned on first admin page load.
+
+Committed in three slices so partial progress survived mid-session: `646603e` (7a), `9124e4f` (7b), this commit (7c).
+
+### Part 7a — Performance caching
+
+- New `AIFirst_Cache` class. Version-counter invalidation: every transient key is `aifirst_v<N>_<raw>`; bumping the `aifirst_cache_version` option by 1 orphans every prior key. Expiry handles cleanup — cheaper than walking `wp_options` to delete every matching transient.
+- Hooks:
+  - `save_post_aifirst_tool`, `deleted_post` (aifirst_tool), `edited_aifirst_category`, `edited_aifirst_feature` → `flush_tool_caches()`
+  - `save_post_aifirst_comparison`, `deleted_post` (aifirst_comparison) → `flush_comparison_caches()`
+  - Plugin upgrade (via `AIFirst_Upgrader::maybe_upgrade`) → `bump_version()`
+- Wrapped `AIFirst_Query` methods:
+  | Method | TTL | Key |
+  |---|---|---|
+  | `leaderboard` | 1h | `leaderboard_{limit}_{category_id}` |
+  | `trending_comparisons` | 1h | `trending_cmp_{limit}` |
+  | `comparisons_for_tool` | 1h | `cmp_for_{tool_id}_{limit}` |
+  | `category_stats` | 15m | `catstats_{term_id}` |
+  | `count_tools_in_category` | 15m | `catcount_{term_id}` |
+  | `count_tools_with_feature` | 15m | `featcount_{feature_slug}` |
+  | `radar_recent` | 30m | `radar_{md5 of args}` |
+- Lazy-loaded home sections via the new public REST route `GET /aifirst/v1/home-section/{section}` (sections: `leaderboard`, `trending`; cached 30m server-side). `window.AIFirstLazy(cfg)` Alpine factory uses `IntersectionObserver` with a 400-px root margin to fetch each section on scroll-into-view. Hero + "This week in AI features" stay inline (LCP-friendly).
+
+### Part 7b — Schema.org JSON-LD
+
+`AIFirst_Schema` emits structured data in `wp_head` priority 20. Every builder reads real stored data; empty fields are omitted, not emitted as empty strings.
+
+| Template | Schema |
+|---|---|
+| `single-aifirst_tool.php` | `SoftwareApplication` (name, description, applicationCategory, operatingSystem: Web, image, offers from `wp_aifirst_plans`, aggregateRating averaged from G2+Capterra sentiment with summed `reviewCount`, review[] from stored quotes) + `BreadcrumbList` + `FAQPage` |
+| `single-aifirst_comparison.php` | `Article` with `about` → `SoftwareApplication[]` (the 2-3 compared tools) + `BreadcrumbList` |
+| `taxonomy-aifirst_category.php` | `CollectionPage` + `ItemList` + `BreadcrumbList` + `FAQPage` |
+| `taxonomy-aifirst_feature.php` | `CollectionPage` + `ItemList` + `BreadcrumbList` + `FAQPage` |
+| `archive-aifirst_tool.php` | `CollectionPage` + `ItemList` + `BreadcrumbList` + `FAQPage` |
+| single core post | `BlogPosting` with author, image, dates |
+
+Output uses `wp_json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)`.
+
+### Part 7c — Design polish
+
+Tokens were pulled verbatim from the decoded design artifact (`rootStyle` in the bundler template):
+
+**Light**
+```
+--aif-bg:     #FAFAF8;
+--aif-bg2:    #F3F1EC;
+--aif-card:   #FFFFFF;
+--aif-border: #E8E6E0;
+--aif-text:   #1A1A1A;
+--aif-sub:    #6B6B65;
+--aif-accent: #2563EB;
+--aif-good:   #16A34A;
+--aif-warn:   #F59E0B;
+--aif-bad:    #DC2626;
+```
+
+**Dark** (replaces every surface + text token above)
+```
+--aif-bg:     #171715;
+--aif-bg2:    #1F1F1C;
+--aif-card:   #1E1E1B;
+--aif-border: #33322D;
+--aif-text:   #F3F1EC;
+--aif-sub:    #A6A399;
+```
+
+Plus typography scale (`--aif-size-h1/h2/h3/base/sm/xs`, weight tokens), spacing (`--aif-space-1` through `--aif-space-8` on an 8-px grid), border-radius tokens, three shadow tokens, and the font-family `Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`. Inter is enqueued from Google Fonts.
+
+**10-bar maturity**. The design source uses a uniform `#2563EB` fill. To honour both the design *and* the spec's request for a visible gradient:
+
+- Ten independent CSS custom properties `--bar-1` … `--bar-10` default to `var(--aif-accent)`. A theme can swap the ramp in one place by overriding these on `:root`.
+- `.aifirst-bars--gradient` opt-in wrapper class ships the red → amber → green ramp (`#DC2626` → `#166534`).
+- `AIFirst_Components::maturity_bars()` applies the gradient class by default; strip it from the wrapper class string to go back to uniform accent.
+
+**Dark-mode toggle.** Three-state cycle (System → Light → Dark). Persisted to `localStorage['aifirst_theme']`. FOUC prevention: an inline `<script id="aifirst-fouc">` printed in `wp_head` priority 1 reads localStorage and sets `[data-theme]` on `<html>` before CSS paints. The toggle button is a floating pill at top-right (same corner as the stack badge); at ≤720 px it drops to its own row to avoid overlap. Alpine factory `window.AIFirstThemeToggle(cfg)` handles the state machine.
+
+**Per-template visual audit is deferred.** The design token swap flows through the whole stylesheet because every component already pulls from CSS custom properties, so the site inherits the correct palette, typography, and shadows site-wide. But a per-template pass (hero spacing on `single-aifirst_tool.php`, filter row on `taxonomy-aifirst_category.php`, A-Z jumper on `archive-aifirst_tool.php`, etc.) hasn't been done yet. Tracking as a Session 7d backlog item — purely CSS tweaks, no markup needed.
+
+### Walk-through
+
+1. **Caching** — load home twice within 30 s. Second request's REST responses include `"cached": true`. Save any tool → reload a category page → counts update (invalidation fires via `save_post_aifirst_tool`).
+2. **Schema** — `view-source:/tool/<slug>/`, grep `application/ld+json`. Expect three blocks: SoftwareApplication, BreadcrumbList, FAQPage (FAQ block present only when the tool has FAQ rows). Validate in [Google Rich Results Test](https://search.google.com/test/rich-results) after deployment.
+3. **Dark mode** — click the top-right pill. Cycles System → Light → Dark. Reload: no flash of light mode when Dark is selected (FOUC script applies the attribute before CSS).
+4. **Gradient bars** — `/tool/<slug>/` with maturity 10 shows the full red-to-green ramp. Lower scores show only the first N segments of the ramp.
+
+### Deferred
+
+- **Per-template polish pass (Session 7d).** Token swap is live site-wide, but hero spacing, filter-row density, A-Z jumper, matrix cell colors, and mobile stacking per the design file haven't been aligned pixel-for-pixel. CSS-only work, no markup.
+- **Theme toggle in the actual site header.** Ships as a floating pill because no theme hook is portable across classic + block themes.
+- **Design's rainbow bar colors verified against decoded source.** The design uses uniform accent; the ramp I shipped is semantically useful but editorial — a future session should pick one per the content team's preference.
+
 ## Session 0.6.1 — Hotfix (2026-11-11)
 
 Version bumped to **0.6.1**. No schema changes.

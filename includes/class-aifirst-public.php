@@ -39,6 +39,39 @@ class AIFirst_Public {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'init', array( $this, 'maybe_flush_rewrites' ), 99 );
 		add_action( 'wp_footer', array( $this, 'render_stack_badge' ) );
+		// @since 0.7.0 — FOUC-prevention + theme toggle.
+		add_action( 'wp_head', array( $this, 'print_fouc_script' ), 1 );
+		add_action( 'wp_footer', array( $this, 'render_theme_toggle' ) );
+	}
+
+	/**
+	 * Tiny inline script in wp_head that reads localStorage before any
+	 * stylesheet downloads and sets [data-theme] on <html> so the correct
+	 * palette paints on first frame.
+	 *
+	 * @since 0.7.0
+	 * @return void
+	 */
+	public function print_fouc_script() {
+		if ( ! $this->is_plugin_screen() ) {
+			return;
+		}
+		?>
+<script id="aifirst-fouc">(function(){try{var t=localStorage.getItem('aifirst_theme');if(t==='dark'||t==='light'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();</script>
+		<?php
+	}
+
+	/**
+	 * Inject the theme toggle alongside the stack badge.
+	 *
+	 * @since 0.7.0
+	 * @return void
+	 */
+	public function render_theme_toggle() {
+		if ( ! $this->is_plugin_screen() ) {
+			return;
+		}
+		AIFirst_Components::dark_mode_toggle();
 	}
 
 	/**
@@ -194,10 +227,20 @@ class AIFirst_Public {
 			return;
 		}
 
+		// @since 0.7.0 — pull Inter so the plugin's typography matches the
+		// design regardless of theme. Google Fonts; preconnect omitted
+		// to keep this enqueue single-stop.
+		wp_enqueue_style(
+			'aifirst-inter',
+			'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap',
+			array(),
+			null
+		);
+
 		wp_enqueue_style(
 			'aifirst-public',
 			AIFIRST_PLUGIN_URL . 'assets/css/public.css',
-			array(),
+			array( 'aifirst-inter' ),
 			AIFIRST_VERSION
 		);
 

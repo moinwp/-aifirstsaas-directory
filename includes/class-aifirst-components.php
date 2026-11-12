@@ -27,7 +27,10 @@ class AIFirst_Components {
 	 */
 	public static function maturity_bars( $score ) {
 		$score = max( 0, min( 10, (int) $score ) );
-		echo '<span class="aifirst-bars" aria-label="' . esc_attr( sprintf( /* translators: %d: score */ __( '%d of 10', 'aifirstsaas' ), $score ) ) . '">';
+		// @since 0.7.0 — `aifirst-bars--gradient` opts the row into the
+		// red → amber → green ramp; omit to get the uniform-accent fill.
+		$wrapper_class = 'aifirst-bars aifirst-bars--gradient';
+		echo '<span class="' . esc_attr( $wrapper_class ) . '" aria-label="' . esc_attr( sprintf( /* translators: %d: score */ __( '%d of 10', 'aifirstsaas' ), $score ) ) . '">';
 		for ( $i = 1; $i <= 10; $i++ ) {
 			$cls = $i <= $score ? 'aifirst-bar aifirst-bar--on' : 'aifirst-bar';
 			echo '<span class="' . esc_attr( $cls ) . '"></span>';
@@ -501,6 +504,31 @@ class AIFirst_Components {
 	 * @since 0.6.0
 	 * @return void
 	 */
+	/**
+	 * Dark-mode toggle button. Three-state cycle: System → Light → Dark.
+	 * Persists to localStorage[aifirst_theme]; the FOUC-prevention inline
+	 * script in <head> applies the stored choice before paint.
+	 *
+	 * @since 0.7.0
+	 * @return void
+	 */
+	public static function dark_mode_toggle() {
+		$cfg = array(
+			'systemLabel' => __( '☾ System', 'aifirstsaas' ),
+			'lightLabel'  => __( '☀ Light', 'aifirstsaas' ),
+			'darkLabel'   => __( '☽ Dark', 'aifirstsaas' ),
+		);
+		?>
+		<button type="button" class="aifirst-theme-toggle"
+			x-data="AIFirstThemeToggle(<?php echo esc_attr( wp_json_encode( $cfg ) ); ?>)"
+			x-init="init()"
+			@click="cycle()"
+			x-text="label"
+			:aria-label="label"
+			:title="label"><?php echo esc_html( $cfg['systemLabel'] ); ?></button>
+		<?php
+	}
+
 	public static function stack_header_badge() {
 		$url = esc_url( home_url( '/stack/' ) );
 		?>
