@@ -91,9 +91,36 @@ Plus typography scale (`--aif-size-h1/h2/h3/base/sm/xs`, weight tokens), spacing
 
 ### Deferred
 
-- **Per-template polish pass (Session 7d).** Token swap is live site-wide, but hero spacing, filter-row density, A-Z jumper, matrix cell colors, and mobile stacking per the design file haven't been aligned pixel-for-pixel. CSS-only work, no markup.
 - **Theme toggle in the actual site header.** Ships as a floating pill because no theme hook is portable across classic + block themes.
 - **Design's rainbow bar colors verified against decoded source.** The design uses uniform accent; the ramp I shipped is semantically useful but editorial — a future session should pick one per the content team's preference.
+
+### 7d — Per-template visual polish (2026-11-12, 0.7.1)
+
+CSS-only pass; no markup changes. All improvements target existing class names so every template inherits them without edits.
+
+- **Typography wired to tokens.** `.aifirst-h1 / h2 / h3` now consume `--aif-size-h1 / h2 / h3` with the design's letter-spacing and line-height. Prior inline sizes stay as fallback, but the token values win when the class is present.
+- **Container padding** uses `--aif-space-6 / 7` on the 8-pt grid (32-px side gutters, matching the design); drops to `--aif-space-4` (16 px) at ≤720 px.
+- **Focus-visible outlines.** Every interactive element inside `.aifirst-shell` paints a 2-px accent outline with 2-px offset on keyboard focus.
+- **Card hover polish.** Tool cards lift subtly on hover (border → accent, small shadow). All hover/tab/filter transitions run at 120–160 ms; a `prefers-reduced-motion` rule kills every transition for users who opted out.
+- **Tool card density tightened.** Padding, gap, title/sub sizes tuned to the design. On mobile the card wraps; the stack-toggle button drops to its own full-width row at the bottom.
+- **Stat strip** matches the design's `14 × 18` padding at desktop and stacks vertically on mobile with the `·` separators hidden.
+- **Filter sidebar + options** get consistent `--aif-space-*` paddings and a subtle hover background.
+- **Table rows** gain a hover-highlight.
+- **FAQ accordion** has roomier `--aif-space-4` padding around questions and a transition on the `+ / −` caret.
+- **Radar rows, compare rows, newsletter**: tightened padding, added hover affordance, mobile stacking of the newsletter field group.
+- **Two- and three-column layouts** now collapse at ≤900 px instead of only ≤1100 px, so tablets and medium viewports don't lose the filter sidebar off-screen.
+- **A-Z jumper** gets `scroll-margin-top: 64px` on mobile so the letter anchor doesn't disappear behind any sticky site header.
+- **Reduced motion** respected site-wide.
+
+What's intentionally still inline in templates: one-off spacing like `margin-top:28px` on `<section>` wrappers in the tool page. These are stable across pages and don't need class extraction — the polish lives in the shared components (card / pill / tabs / stat strip / FAQ) which every template consumes.
+
+### Walk-through (updated for 7d)
+
+1. Hover any tool card → border flips to accent, small shadow, cursor on title. Keyboard-tab onto it → visible accent outline.
+2. On `/tool/<slug>/`: hero stacks avatar / title / badges / button row at 720 px; stat strip stacks rows.
+3. `/tools/` filter sidebar collapses above the main list at 900 px; A-Z jumper taps land on the right letter heading with offset.
+4. Any FAQ accordion: question rows have the accent focus outline on keyboard-tab; caret transitions smoothly.
+5. Toggle dark mode → all polish rules inherit correctly (hover backgrounds, shadows removed from avatars in dark, focus outline still visible).
 
 ## Session 0.6.1 — Hotfix (2026-11-11)
 
