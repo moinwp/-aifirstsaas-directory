@@ -2,6 +2,84 @@
 
 Running log of decisions and open items. Dated entries at the top.
 
+## Session 7.2 (revised) — Submit nav + measured form (2026-11-13, 0.8.1)
+
+**0.8.0 shipped the wrong thing.** The spec was for a minimal nav link and a tight form; the 0.8.0 build added a styled CTA pill, a floating fallback, a settings UI with three toggles, and a seven-extra-fields form. 0.8.1 is a corrective release that strips the over-build back to the revised spec.
+
+### Part 1 — Plain "Submit" nav item
+
+- `AIFirst_Public::inject_submit_into_nav()` hooks `wp_nav_menu_items` at priority 10.
+- Detects the primary nav by matching `$args->theme_location` against `primary | primary-menu | main | main-menu | menu-1 | header | top`.
+- Appends `<li class="menu-item aifirst-nav-submit"><a href="/submit/">Submit</a></li>` — no inline styles, no classes beyond `menu-item` + the targeting hook. The theme's menu-item styling wins.
+- CSS is intentionally minimal: a single `display: list-item` safety net in case a theme hides unknown menu items.
+- **No floating fallback.** If a theme doesn't register a matching location, the direct URL + the footer link below are the escape hatches.
+- **No settings page.** Also removed in this release.
+
+### Part 2 — Footer link row on `/`
+
+`templates/public/front-page.php` now renders a `<nav class="aifirst-footer-links">` row with Categories / All Tools / Compare / AI Features / AI Radar / Submit a tool, matching the design's RESOURCES column. Small flex row, inherits typography, no shadow.
+
+### Part 3 — Measured form at `/submit/`
+
+Four grouped `<fieldset>`s replace the 0.8.0 three-section Alpine form:
+
+- **About the tool** — `tool_name` *, `website` *, `excerpt` * (240 chars), `category` *
+- **Pricing** — `pricing_url`, `pricing_model` (freemium / subscription / one-time / free / usage-based), `has_free_plan`, `starting_price_usd`
+- **AI features** — `ai_features` *
+- **Your contact info** — `email` *, `source_url`, `notes` (relabeled "Anything else you want the reviewer to know?")
+
+**Dropped** vs 0.8.0: `logo_url`, `company_name`, `subcategory`, `submitter_name`, `relationship`, `why_ai_first`, `ai_on_free_plan`. These were causing form-fatigue and overlapped with fields the reviewer can set when polishing the draft.
+
+The Alpine `x-model="hasFree"` dependency and the subcategory conditional are gone — the form is now almost pure HTML inside the two tab templates.
+
+Server-side validation enforces every `*` field with explicit flash errors.
+
+### Part 4 — Payload + admin review
+
+`wp_aifirst_submissions.payload` stays (shipped in 0.8.0). The sanitizer and the admin detail-page label map are both trimmed to the 11 fields the 0.8.1 form actually collects.
+
+`AIFirst_Submissions_Admin::approve_row()` canonical-record mapping:
+
+- `tool.title` ← `tool_name`
+- `tool.excerpt` ← `excerpt`
+- `tool.content` ← **`notes`** (was `why_ai_first` in 0.8.0; reviewer context now lands in the draft body where it's easy to revise)
+- `tool.categories[]` ← category name (resolved from slug via `get_term_by`, raw value as fallback)
+- `tool.ai_features` → split on commas/newlines + `tool_features[]` rows (is_native=1)
+- `tool.status` = `draft`
+- `meta.website_url` ← `website`
+- `meta.pricing_url` ← `pricing_url` (omitted when empty)
+- `meta.pricing_model` ← `pricing_model` (omitted when empty)
+- `meta.has_free_plan` ← 0/1
+- `meta.starting_price_usd` ← float when provided; **not** set to 0 when omitted (was defaulting to 0 in 0.8.0; now simply left unset so the reviewer sees the missing value instead of a misleading zero)
+
+Approval flash still carries the `Open draft: <Title>` direct link to the WP editor.
+
+### Part 5 — Success copy
+
+> *Thanks — your submission is in the queue. A reviewer will look at it within a few days. If we need more information we'll reach out at the email you provided.*
+
+No transactional email sent — unchanged from 0.8.0.
+
+### Walk-through
+
+| # | URL | Expect |
+|---|---|---|
+| 1 | Any front-end page | Theme's primary nav shows a plain **Submit** link alongside existing menu items (matches the sibling menu-item styling exactly) |
+| 2 | Click **Submit** | Lands on `/submit/` |
+| 3 | `/submit/` | Four `<fieldset>`s render: About the tool / Pricing / AI features / Your contact info |
+| 4 | Submit filled form | Success flash: *Thanks — your submission is in the queue…* |
+| 5 | **Tools → Submissions** | New row with a **View submission** action in the row-action rail |
+| 6 | **Approve & create draft tool** | New `aifirst_tool` draft created with every submitted field populated: website_url, pricing_url, pricing_model, has_free_plan, starting_price_usd, excerpt, content=notes, category assigned, tool_features rows seeded |
+
+### Removed from 0.8.0 → 0.8.1
+
+- `AIFirst_Components::submit_cta_nav_item()` → replaced by `submit_nav_item()`
+- `AIFirst_Components::submit_cta_floating()` → deleted
+- `AIFirst_Public::render_floating_submit_cta()` → deleted
+- `AIFirst_Public::$submit_cta_injected_in_nav` → deleted (no longer needed with only one render path)
+- `AIFirst_Settings` — `cta_in_nav`, `cta_floating`, `cta_label` fields + the "Submit Your Tool CTA" UI section
+- `.aifirst-nav-submit-cta`, `.aifirst-float-submit-cta`, `.aifirst-submit-group`, `.aifirst-check` CSS
+
 ## Session 7.2 — Submit CTA + rich submission form (2026-11-13)
 
 Version bumped to **0.8.0**. `AIFIRST_DB_VERSION` also bumped so the upgrader runs the new column migration on next admin page load.

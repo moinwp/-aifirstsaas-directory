@@ -68,55 +68,34 @@ class AIFirst_Submissions {
 			$this->redirect_with( 'error', __( 'A valid email is required.', 'aifirstsaas' ) );
 		}
 
-		// @since 0.8.0 — richer field set + a structured `payload`.
-		// `body` remains the slim Session 4 shape for backwards-compat
+		// @since 0.8.1 — measured field set + structured `payload`.
+		// `body` keeps the slim Session 4 shape for backwards compat
 		// with existing admin list views; `payload` carries everything.
-		$allowed_pricing      = array( 'freemium', 'subscription', 'one-time', 'free', 'usage-based' );
-		$allowed_relationship = array( 'builder', 'employee', 'user', 'other' );
-
-		$pricing_model = isset( $_POST['pricing_model'] ) ? sanitize_key( wp_unslash( $_POST['pricing_model'] ) ) : '';
+		$allowed_pricing = array( 'freemium', 'subscription', 'one-time', 'free', 'usage-based' );
+		$pricing_model   = isset( $_POST['pricing_model'] ) ? sanitize_key( wp_unslash( $_POST['pricing_model'] ) ) : '';
 		if ( ! in_array( $pricing_model, $allowed_pricing, true ) ) {
 			$pricing_model = '';
 		}
-		$relationship = isset( $_POST['relationship'] ) ? sanitize_key( wp_unslash( $_POST['relationship'] ) ) : '';
-		if ( ! in_array( $relationship, $allowed_relationship, true ) ) {
-			$relationship = '';
-		}
 
-		$has_free_plan   = ! empty( $_POST['has_free_plan'] ) ? 1 : 0;
-		$ai_on_free_plan = ! empty( $_POST['ai_on_free_plan'] ) ? 1 : 0;
-		if ( ! $has_free_plan ) {
-			$ai_on_free_plan = 0;
-		}
-
+		$has_free_plan  = ! empty( $_POST['has_free_plan'] ) ? 1 : 0;
 		$starting_price = isset( $_POST['starting_price_usd'] ) ? (string) wp_unslash( $_POST['starting_price_usd'] ) : '';
 		$starting_price = '' === $starting_price ? null : max( 0, min( 99999999.99, (float) $starting_price ) );
-
-		$excerpt       = isset( $_POST['excerpt'] ) ? substr( sanitize_textarea_field( wp_unslash( $_POST['excerpt'] ) ), 0, 240 ) : '';
-		$why_ai_first  = isset( $_POST['why_ai_first'] ) ? substr( sanitize_textarea_field( wp_unslash( $_POST['why_ai_first'] ) ), 0, 1500 ) : '';
+		$excerpt        = isset( $_POST['excerpt'] ) ? substr( sanitize_textarea_field( wp_unslash( $_POST['excerpt'] ) ), 0, 240 ) : '';
 
 		$payload = array(
 			'tool_name'          => isset( $_POST['tool_name'] ) ? sanitize_text_field( wp_unslash( $_POST['tool_name'] ) ) : '',
 			'website'            => isset( $_POST['website'] ) ? esc_url_raw( wp_unslash( $_POST['website'] ) ) : '',
-			'pricing_url'        => isset( $_POST['pricing_url'] ) ? esc_url_raw( wp_unslash( $_POST['pricing_url'] ) ) : '',
-			'logo_url'           => isset( $_POST['logo_url'] ) ? esc_url_raw( wp_unslash( $_POST['logo_url'] ) ) : '',
-			'company_name'       => isset( $_POST['company_name'] ) ? sanitize_text_field( wp_unslash( $_POST['company_name'] ) ) : '',
-			'category'           => isset( $_POST['category'] ) ? sanitize_text_field( wp_unslash( $_POST['category'] ) ) : '',
-			'subcategory'        => isset( $_POST['subcategory'] ) ? sanitize_text_field( wp_unslash( $_POST['subcategory'] ) ) : '',
 			'excerpt'            => $excerpt,
-			'ai_features'        => isset( $_POST['ai_features'] ) ? sanitize_textarea_field( wp_unslash( $_POST['ai_features'] ) ) : '',
+			'category'           => isset( $_POST['category'] ) ? sanitize_text_field( wp_unslash( $_POST['category'] ) ) : '',
+			'pricing_url'        => isset( $_POST['pricing_url'] ) ? esc_url_raw( wp_unslash( $_POST['pricing_url'] ) ) : '',
 			'pricing_model'      => $pricing_model,
 			'has_free_plan'      => $has_free_plan,
-			'ai_on_free_plan'    => $ai_on_free_plan,
 			'starting_price_usd' => $starting_price,
-			'why_ai_first'       => $why_ai_first,
-			'submitter_name'     => isset( $_POST['submitter_name'] ) ? sanitize_text_field( wp_unslash( $_POST['submitter_name'] ) ) : '',
-			'relationship'       => $relationship,
+			'ai_features'        => isset( $_POST['ai_features'] ) ? sanitize_textarea_field( wp_unslash( $_POST['ai_features'] ) ) : '',
 			'source_url'         => isset( $_POST['source_url'] ) ? esc_url_raw( wp_unslash( $_POST['source_url'] ) ) : '',
 			'notes'              => isset( $_POST['notes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['notes'] ) ) : '',
 		);
 
-		// Backwards-compatible slim body for the admin list column renderer.
 		$body = array(
 			'tool_name'    => $payload['tool_name'],
 			'website'      => $payload['website'],
@@ -133,17 +112,14 @@ class AIFirst_Submissions {
 			if ( '' === $payload['website'] ) {
 				$this->redirect_with( 'error', __( 'Website URL is required.', 'aifirstsaas' ) );
 			}
-			if ( '' === $payload['category'] ) {
-				$this->redirect_with( 'error', __( 'Pick a category.', 'aifirstsaas' ) );
-			}
 			if ( '' === $excerpt ) {
 				$this->redirect_with( 'error', __( 'A one-sentence excerpt is required.', 'aifirstsaas' ) );
 			}
+			if ( '' === $payload['category'] ) {
+				$this->redirect_with( 'error', __( 'Pick a category.', 'aifirstsaas' ) );
+			}
 			if ( '' === $payload['ai_features'] ) {
 				$this->redirect_with( 'error', __( 'List at least one AI feature.', 'aifirstsaas' ) );
-			}
-			if ( '' === $why_ai_first ) {
-				$this->redirect_with( 'error', __( 'Tell us why this tool is AI-first.', 'aifirstsaas' ) );
 			}
 		}
 		if ( 'update' === $kind && '' === $tool_id ) {
@@ -171,10 +147,10 @@ class AIFirst_Submissions {
 		}
 
 		$this->mark_rate( $ip );
-		// @since 0.8.0 — explicit expectation-setting copy.
+		// @since 0.8.1 — concise expectation-setting copy.
 		$this->redirect_with(
 			'ok',
-			__( "Thanks — we've received your submission. A reviewer will look at it within a few days and either publish your tool or email you back if we need more information.", 'aifirstsaas' )
+			__( "Thanks — your submission is in the queue. A reviewer will look at it within a few days. If we need more information we'll reach out at the email you provided.", 'aifirstsaas' )
 		);
 	}
 

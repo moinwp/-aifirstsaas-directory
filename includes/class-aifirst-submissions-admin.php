@@ -203,10 +203,11 @@ class AIFirst_Submissions_Admin {
 			: ( '' !== $tool_id ? ucwords( str_replace( '-', ' ', $tool_id ) ) : '' );
 		$record['tool']['status']  = 'draft';
 		$record['tool']['excerpt'] = isset( $payload['excerpt'] ) ? (string) $payload['excerpt'] : '';
-		$record['tool']['content'] = isset( $payload['why_ai_first'] ) ? wp_kses_post( (string) $payload['why_ai_first'] ) : '';
+		// @since 0.8.1 — content lands from notes so reviewer context is
+		// in the draft body where it's easy to revise.
+		$record['tool']['content'] = isset( $payload['notes'] ) ? wp_kses_post( (string) $payload['notes'] ) : '';
 
 		if ( isset( $payload['category'] ) && '' !== (string) $payload['category'] ) {
-			// Try to resolve slug to category name; fall back to the raw value.
 			$term = get_term_by( 'slug', sanitize_title( (string) $payload['category'] ), 'aifirst_category' );
 			$record['tool']['categories'] = array( $term ? $term->name : (string) $payload['category'] );
 		}
@@ -225,26 +226,20 @@ class AIFirst_Submissions_Admin {
 			}
 		}
 
-		// Meta fields drawn from the rich payload.
+		// Only the fields the 0.8.1 form actually collects.
 		$meta_map = array(
-			'company_name'       => 'company_name',
-			'website_url'        => 'website',
-			'pricing_url'        => 'pricing_url',
-			'logo_url'           => 'logo_url',
-			'subcategory'        => 'subcategory',
-			'pricing_model'      => 'pricing_model',
+			'website_url'   => 'website',
+			'pricing_url'   => 'pricing_url',
+			'pricing_model' => 'pricing_model',
 		);
 		foreach ( $meta_map as $meta_key => $payload_key ) {
 			if ( isset( $payload[ $payload_key ] ) && '' !== (string) $payload[ $payload_key ] ) {
 				$record['meta'][ $meta_key ] = (string) $payload[ $payload_key ];
 			}
 		}
-		$record['meta']['has_free_plan']   = ! empty( $payload['has_free_plan'] ) ? 1 : 0;
-		$record['meta']['ai_on_free_plan'] = ! empty( $payload['ai_on_free_plan'] ) ? 1 : 0;
+		$record['meta']['has_free_plan'] = ! empty( $payload['has_free_plan'] ) ? 1 : 0;
 		if ( isset( $payload['starting_price_usd'] ) && '' !== (string) $payload['starting_price_usd'] && null !== $payload['starting_price_usd'] ) {
 			$record['meta']['starting_price_usd'] = (float) $payload['starting_price_usd'];
-		} else {
-			$record['meta']['starting_price_usd'] = 0;
 		}
 
 		$validated = AIFirst_Record::validate( $record );
@@ -343,20 +338,13 @@ class AIFirst_Submissions_Admin {
 		$labels = array(
 			'tool_name'          => __( 'Tool name', 'aifirstsaas' ),
 			'website'            => __( 'Website', 'aifirstsaas' ),
-			'pricing_url'        => __( 'Pricing URL', 'aifirstsaas' ),
-			'logo_url'           => __( 'Logo URL', 'aifirstsaas' ),
-			'company_name'       => __( 'Company name', 'aifirstsaas' ),
-			'category'           => __( 'Category', 'aifirstsaas' ),
-			'subcategory'        => __( 'Subcategory', 'aifirstsaas' ),
 			'excerpt'            => __( 'Excerpt', 'aifirstsaas' ),
-			'ai_features'        => __( 'AI features', 'aifirstsaas' ),
+			'category'           => __( 'Category', 'aifirstsaas' ),
+			'pricing_url'        => __( 'Pricing URL', 'aifirstsaas' ),
 			'pricing_model'      => __( 'Pricing model', 'aifirstsaas' ),
 			'has_free_plan'      => __( 'Has free plan', 'aifirstsaas' ),
-			'ai_on_free_plan'    => __( 'AI on free plan', 'aifirstsaas' ),
 			'starting_price_usd' => __( 'Starting price (USD)', 'aifirstsaas' ),
-			'why_ai_first'       => __( 'Why is this tool AI-first?', 'aifirstsaas' ),
-			'submitter_name'     => __( 'Submitter name', 'aifirstsaas' ),
-			'relationship'       => __( 'Relationship', 'aifirstsaas' ),
+			'ai_features'        => __( 'AI features', 'aifirstsaas' ),
 			'source_url'         => __( 'Source URL', 'aifirstsaas' ),
 			'notes'              => __( 'Notes', 'aifirstsaas' ),
 		);
@@ -423,7 +411,7 @@ class AIFirst_Submissions_Admin {
 							<td style="font-weight:600; vertical-align:top;"><?php echo esc_html( $label ); ?></td>
 							<td style="white-space:pre-wrap; vertical-align:top;">
 								<?php
-								if ( is_bool( $v ) || ( is_numeric( $v ) && in_array( $k, array( 'has_free_plan', 'ai_on_free_plan' ), true ) ) ) {
+								if ( is_bool( $v ) || ( is_numeric( $v ) && in_array( $k, array( 'has_free_plan' ), true ) ) ) {
 									echo (int) $v ? '✓' : '—';
 								} elseif ( in_array( $k, array( 'website', 'pricing_url', 'logo_url', 'source_url' ), true ) ) {
 									printf( '<a href="%1$s" target="_blank" rel="noopener">%1$s</a>', esc_url( (string) $v ) );

@@ -137,6 +137,15 @@ $universal = get_terms(
 
 		<?php AIFirst_Components::newsletter_form(); ?>
 
+		<nav class="aifirst-footer-links" aria-label="<?php esc_attr_e( 'Site links', 'aifirstsaas' ); ?>">
+			<a href="<?php echo esc_url( home_url( '/categories/' ) ); ?>"><?php esc_html_e( 'Categories', 'aifirstsaas' ); ?></a>
+			<a href="<?php echo esc_url( get_post_type_archive_link( 'aifirst_tool' ) ); ?>"><?php esc_html_e( 'All Tools', 'aifirstsaas' ); ?></a>
+			<a href="<?php echo esc_url( home_url( '/compare/' ) ); ?>"><?php esc_html_e( 'Compare', 'aifirstsaas' ); ?></a>
+			<a href="<?php echo esc_url( home_url( '/features/' ) ); ?>"><?php esc_html_e( 'AI Features', 'aifirstsaas' ); ?></a>
+			<a href="<?php echo esc_url( home_url( '/changelog/' ) ); ?>"><?php esc_html_e( 'AI Radar', 'aifirstsaas' ); ?></a>
+			<a href="<?php echo esc_url( home_url( '/submit/' ) ); ?>"><?php esc_html_e( 'Submit a tool', 'aifirstsaas' ); ?></a>
+		</nav>
+
 		<?php AIFirst_Components::faq_block( $faq ); ?>
 	</div>
 </div>
