@@ -87,12 +87,20 @@ class AIFirst_Submissions_List_Table extends WP_List_Table {
 
 	public function column_kind( $item ) {
 		$label = ( 'update' === $item->kind ) ? __( 'Update', 'aifirstsaas' ) : __( 'New tool', 'aifirstsaas' );
-		$out   = '<strong>' . esc_html( $label ) . '</strong>';
+		$base  = add_query_arg( array( 'page' => AIFirst_Submissions_Admin::PAGE_SLUG, 'post_type' => 'aifirst_tool' ), admin_url( 'edit.php' ) );
+		$view  = add_query_arg( 'view', (int) $item->submission_id, $base );
+		$out   = '<strong><a href="' . esc_url( $view ) . '">' . esc_html( $label ) . '</a></strong>';
 
-		$actions = array();
-		$base    = add_query_arg( array( 'page' => AIFirst_Submissions_Admin::PAGE_SLUG, 'post_type' => 'aifirst_tool' ), admin_url( 'edit.php' ) );
+		// @since 0.8.0 — "View details" row action.
+		$actions = array(
+			'view' => sprintf(
+				'<a href="%s">%s</a>',
+				esc_url( $view ),
+				esc_html__( 'View submission details', 'aifirstsaas' )
+			),
+		);
 		foreach ( array( 'approve', 'rejected', 'delete' ) as $a ) {
-			$url            = wp_nonce_url(
+			$url          = wp_nonce_url(
 				add_query_arg(
 					array(
 						'aifirst_action' => $a,
@@ -102,8 +110,8 @@ class AIFirst_Submissions_List_Table extends WP_List_Table {
 				),
 				AIFirst_Submissions_Admin::NONCE
 			);
-			$label_action   = 'approve' === $a ? __( 'Approve', 'aifirstsaas' ) : ucfirst( $a );
-			$actions[ $a ]  = sprintf( '<a href="%s">%s</a>', esc_url( $url ), esc_html( $label_action ) );
+			$label_action = 'approve' === $a ? __( 'Approve', 'aifirstsaas' ) : ucfirst( $a );
+			$actions[ $a ] = sprintf( '<a href="%s">%s</a>', esc_url( $url ), esc_html( $label_action ) );
 		}
 		return $out . $this->row_actions( $actions );
 	}

@@ -2,6 +2,93 @@
 
 Running log of decisions and open items. Dated entries at the top.
 
+## Session 7.2 — Submit CTA + rich submission form (2026-11-13)
+
+Version bumped to **0.8.0**. `AIFIRST_DB_VERSION` also bumped so the upgrader runs the new column migration on next admin page load.
+
+### Part 1 — Global "Submit Your Tool" CTA
+
+Two render paths so every theme gets it:
+
+- **Nav injection (classic themes)** — `wp_nav_menu_items` filter appends a styled button `<li class="menu-item aifirst-nav-submit-cta-item">` only when the current menu's `theme_location` matches one of `primary | primary-menu | main | main-menu | header | top`. Tracked with the `submit_cta_injected_in_nav` instance flag so the floating fallback can't double-render.
+- **Floating fallback (block themes or unknown locations)** — `wp_footer` prints `<a class="aifirst-float-submit-cta">` fixed at top-left (opposite corner from the stack badge + theme toggle). Shifts to top-right at ≤720 px with a small top offset to clear the badge.
+
+Settings (Tools → Settings → *Submit Your Tool CTA*):
+
+- `cta_in_nav` — show CTA in theme's primary nav menu (default on)
+- `cta_floating` — show floating fallback when nav injection isn't possible (default on)
+- `cta_label` — text override (default *"Submit Your Tool"*)
+
+If both toggles are off, nothing renders.
+
+### Part 2 — Rich submit form
+
+Three grouped sections replace the Session 4 slim form:
+
+**A. About the tool** — `tool_name` (required), `website` (required), `pricing_url`, `logo_url` (with help text), `company_name`, `category` (required; Alpine `x-model="cat"`), `subcategory` (only shown for category `wordpress` via `x-show="cat === 'wordpress'"`), `excerpt` (required, 240 chars max).
+
+**B. About the AI features** — `ai_features` (required), `pricing_model` (dropdown: freemium / subscription / one-time / free / usage-based), `has_free_plan` (checkbox, Alpine `x-model="hasFree"`), `ai_on_free_plan` (checkbox, `:disabled="!hasFree"`, greyed-out styling via `:style="!hasFree && 'opacity:0.5;'"`), `starting_price_usd`, `why_ai_first` (required, 1500 chars max).
+
+**C. About you** — `submitter_name`, `email` (required), `relationship` (I built this / I work at / I use it / I'm recommending), `source_url`, `notes`.
+
+Honeypot `hp` and nonce stay intact. The "Update existing" tab is unchanged except for the common submitter fields at the bottom.
+
+Server-side validation enforces the `*` fields; mismatches bounce to the flash with an explicit error.
+
+### Schema change
+
+`{prefix}aifirst_submissions` gains a `payload LONGTEXT NULL` column (after `body`). On existing installs the upgrader runs an `INFORMATION_SCHEMA` check and `ALTER TABLE ... ADD COLUMN` if missing — idempotent.
+
+- `body` still carries the slim legacy shape (tool_name/website/category/ai_features/source_url/notes) so the admin list column renderer doesn't need rework.
+- `payload` carries every rich-form field as a structured JSON blob. Approvals read `payload` first, fall back to `body` for pre-0.8.0 rows.
+
+### Admin approval, enriched
+
+`AIFirst_Submissions_Admin::approve_row()` now:
+
+1. Decodes `payload` (falls back to `body`).
+2. Builds a canonical record per the spec mapping:
+   - `tool.title` = `tool_name`
+   - `tool.excerpt` = `excerpt`
+   - `tool.content` = `wp_kses_post(why_ai_first)`
+   - `tool.categories[]` = category name (resolved from slug via `get_term_by`, falls back to the raw submitted value)
+   - `tool.ai_features` → split on commas + `tool_features[]` rows with `is_native=1`
+   - `tool.status` = `draft`
+   - `meta.{company_name,website_url,pricing_url,logo_url,subcategory,pricing_model}` = submitted values
+   - `meta.has_free_plan` / `meta.ai_on_free_plan` = 0/1
+   - `meta.starting_price_usd` = submitted float, defaulting to 0
+3. Runs `AIFirst_Record::validate()`, calls `AIFirst_Intake::save_record()`, marks the submission `approved` + stamps `reviewed_at`, and surfaces an `Open draft: <title>` link in the flash so the reviewer lands in the WP editor.
+
+### Admin "View submission details"
+
+New row action on the Submissions list (`view_details`) and a title-click that both go to `?view=<id>`. `AIFirst_Submissions_Admin::render_detail()` prints every decoded `payload` field in a clean two-column table plus Approve/Reject buttons inline. The full `why_ai_first` text + all meta fields are visible without opening the list-row bulk-action rail.
+
+### Public-facing success state
+
+Flash copy updated to the Session 7.2 spec:
+
+> *Thanks — we've received your submission. A reviewer will look at it within a few days and either publish your tool or email you back if we need more information.*
+
+No automated email is sent — infra decision (no transactional provider wired yet).
+
+### Walk-through
+
+| # | URL | Expect |
+|---|---|---|
+| 1 | Any theme front-end | *Submit Your Tool* CTA appears — either in the theme's primary nav bar or as a floating pill at top-left |
+| 2 | **Tools → Settings** | Three new controls under *Submit Your Tool CTA*; flipping each kills the matching render path; flipping both kills the CTA entirely |
+| 3 | `/submit/` | Three-section form renders (About the tool / AI features / About you) |
+| 4 | Submit a filled form | Success flash: *Thanks — we've received your submission…* |
+| 5 | **Tools → Submissions** | New row with Kind column linked to detail view |
+| 6 | Click **View submission details** | Full payload rendered field-by-field, with Approve/Reject buttons |
+| 7 | **Approve & create draft tool** | New `aifirst_tool` draft created with every submitted meta field populated; flash carries an *Open draft: Title* link |
+| 8 | Open the draft | Editor shows the `why_ai_first` content, excerpt, all meta, taxonomies assigned |
+
+### Deferred
+
+- **Confirmation email to the submitter.** Deferred until a transactional provider is wired — the schema stores the email so a future job can relay from the admin's own email client manually, or automate once we pick a provider.
+- **Richer subcategory list.** Hardcoded to the 8 WordPress subcats; when a real `wp_aifirst_category_meta` row exists we can switch to a live lookup.
+
 ## Session 7 — Performance + Schema.org + Design Polish (2026-11-12)
 
 Version bumped to **0.7.0**. `AIFIRST_DB_VERSION` also bumped to 0.7.0 so the upgrader runs `AIFirst_Cache::bump_version()` and all prior transients become orphaned on first admin page load.

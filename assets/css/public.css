@@ -571,6 +571,57 @@
 .aifirst-tool-card__link:hover { color: inherit; text-decoration: none; }
 .aifirst-tool-card > .aifirst-stack-btn { flex: 0 0 auto; margin-left: auto; }
 
+/* Submit Your Tool CTA — nav menu + floating pill (@since 0.8.0) */
+.aifirst-nav-submit-cta {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 14px;
+	border-radius: var(--aif-radius-pill, 20px);
+	background: var(--aif-accent);
+	color: #fff !important;
+	font-weight: 600;
+	text-decoration: none;
+	line-height: 1.2;
+	transition: background 120ms ease;
+}
+.aifirst-nav-submit-cta:hover,
+.aifirst-nav-submit-cta:focus { background: #1D4ED8; color: #fff !important; text-decoration: none; }
+
+.aifirst-float-submit-cta {
+	position: fixed;
+	top: 16px;
+	left: 16px;
+	z-index: 90;
+	padding: 8px 14px;
+	border-radius: var(--aif-radius-pill, 20px);
+	background: var(--aif-accent);
+	color: #fff !important;
+	font-size: var(--aif-size-sm, 12.5px);
+	font-weight: 600;
+	text-decoration: none;
+	box-shadow: var(--aif-shadow-md, 0 4px 12px rgba(0,0,0,0.12));
+	transition: background 120ms ease, transform 120ms ease;
+}
+.aifirst-float-submit-cta:hover,
+.aifirst-float-submit-cta:focus { background: #1D4ED8; color: #fff !important; text-decoration: none; }
+
+@media (max-width: 720px) {
+	.aifirst-float-submit-cta { top: 64px; left: auto; right: 16px; }
+}
+
+/* Submit page — section headings + check-rows (@since 0.8.0) */
+.aifirst-submit-group { display: flex; flex-direction: column; gap: 12px; }
+.aifirst-submit-group .aifirst-h3 { margin: 12px 0 4px; }
+.aifirst-shell label.aifirst-check {
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+}
+.aifirst-shell label.aifirst-check > input[type="checkbox"] { width: auto; }
+.aifirst-shell label.aifirst-check > span { color: var(--aif-text); margin: 0; }
+
 /* Floating theme toggle (@since 0.7.0) — sits left of the stack badge */
 .aifirst-theme-toggle {
 	position: fixed;

@@ -505,6 +505,38 @@ class AIFirst_Components {
 	 * @return void
 	 */
 	/**
+	 * Submit CTA — nav menu item HTML. Returned as a string so the
+	 * caller can append it to wp_nav_menu_items.
+	 *
+	 * @since 0.8.0
+	 * @param string $label Label.
+	 * @return string
+	 */
+	public static function submit_cta_nav_item( $label ) {
+		return sprintf(
+			'<li class="menu-item aifirst-nav-submit-cta-item"><a class="aifirst-nav-submit-cta" href="%s">%s</a></li>',
+			esc_url( home_url( '/submit/' ) ),
+			esc_html( $label )
+		);
+	}
+
+	/**
+	 * Submit CTA — floating-pill variant. Rendered via wp_footer
+	 * when the nav-injection path did not run.
+	 *
+	 * @since 0.8.0
+	 * @param string $label Label.
+	 * @return void
+	 */
+	public static function submit_cta_floating( $label ) {
+		printf(
+			'<a class="aifirst-float-submit-cta" href="%s">%s</a>',
+			esc_url( home_url( '/submit/' ) ),
+			esc_html( $label )
+		);
+	}
+
+	/**
 	 * Dark-mode toggle button. Three-state cycle: System → Light → Dark.
 	 * Persists to localStorage[aifirst_theme]; the FOUC-prevention inline
 	 * script in <head> applies the stored choice before paint.

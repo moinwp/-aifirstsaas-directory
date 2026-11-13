@@ -273,6 +273,7 @@ class AIFirst_Activator {
 			kind VARCHAR(10) NOT NULL DEFAULT 'new',
 			tool_id VARCHAR(191) NOT NULL DEFAULT '',
 			body LONGTEXT NULL,
+			payload LONGTEXT NULL,
 			email VARCHAR(190) NOT NULL DEFAULT '',
 			status VARCHAR(20) NOT NULL DEFAULT 'new',
 			source_ip VARCHAR(45) NOT NULL DEFAULT '',
@@ -369,5 +370,23 @@ class AIFirst_Activator {
 		$submissions = $wpdb->prefix . 'aifirst_submissions';
 		$wpdb->query( $wpdb->prepare( "UPDATE {$reports} SET status = %s WHERE status = %s", 'new', 'pending' ) );
 		$wpdb->query( $wpdb->prepare( "UPDATE {$submissions} SET status = %s WHERE status = %s", 'new', 'pending' ) );
+
+		// Session 7.2: add `payload` LONGTEXT to submissions on existing
+		// installs. dbDelta usually catches it, but belt-and-braces in
+		// case the host's MySQL grammar silently ignored the ADD.
+		// @since 0.8.0
+		$has_payload = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+					WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+				DB_NAME,
+				$submissions,
+				'payload'
+			)
+		);
+		if ( 0 === (int) $has_payload ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$submissions} ADD COLUMN payload LONGTEXT NULL AFTER body" );
+		}
 	}
 }

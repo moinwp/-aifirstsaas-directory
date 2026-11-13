@@ -51,9 +51,13 @@ class AIFirst_Settings {
 	public function sanitize( $input ) {
 		$existing = get_option( self::OPTION_NAME, array() );
 		$out      = array(
-			'provider' => 'anthropic',
-			'model'    => '',
-			'api_key'  => isset( $existing['api_key'] ) ? (string) $existing['api_key'] : '',
+			'provider'       => 'anthropic',
+			'model'          => '',
+			'api_key'        => isset( $existing['api_key'] ) ? (string) $existing['api_key'] : '',
+			// @since 0.8.0 — Submit CTA controls.
+			'cta_in_nav'     => 1,
+			'cta_floating'   => 1,
+			'cta_label'      => __( 'Submit Your Tool', 'aifirstsaas' ),
 		);
 
 		if ( ! is_array( $input ) ) {
@@ -67,6 +71,12 @@ class AIFirst_Settings {
 		$out['provider'] = $provider;
 
 		$out['model'] = isset( $input['model'] ) ? sanitize_text_field( (string) $input['model'] ) : '';
+
+		// @since 0.8.0 — Submit CTA.
+		$out['cta_in_nav']   = ! empty( $input['cta_in_nav'] ) ? 1 : 0;
+		$out['cta_floating'] = ! empty( $input['cta_floating'] ) ? 1 : 0;
+		$label               = isset( $input['cta_label'] ) ? sanitize_text_field( (string) $input['cta_label'] ) : '';
+		$out['cta_label']    = '' !== $label ? $label : __( 'Submit Your Tool', 'aifirstsaas' );
 
 		$key_in = isset( $input['api_key'] ) ? (string) $input['api_key'] : '';
 		$key_in = trim( $key_in );
@@ -208,6 +218,38 @@ class AIFirst_Settings {
 							<p class="description">
 								<?php esc_html_e( 'Saves nothing. Sends one minimal call to verify the key works.', 'aifirstsaas' ); ?>
 							</p>
+						</td>
+					</tr>
+					</tbody>
+				</table>
+
+				<h2 style="margin-top:28px;"><?php esc_html_e( 'Submit Your Tool CTA', 'aifirstsaas' ); ?></h2>
+				<table class="form-table" role="presentation">
+					<tbody>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Nav menu injection', 'aifirstsaas' ); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( self::OPTION_NAME ); ?>[cta_in_nav]" value="1" <?php checked( ! empty( $opt['cta_in_nav'] ) || ! isset( $opt['cta_in_nav'] ) ); ?> />
+								<?php esc_html_e( "Show CTA in theme's primary nav menu (where available).", 'aifirstsaas' ); ?>
+							</label>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Floating fallback', 'aifirstsaas' ); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( self::OPTION_NAME ); ?>[cta_floating]" value="1" <?php checked( ! empty( $opt['cta_floating'] ) || ! isset( $opt['cta_floating'] ) ); ?> />
+								<?php esc_html_e( "Show floating fallback button when nav injection isn't possible.", 'aifirstsaas' ); ?>
+							</label>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="aifirst-cta-label"><?php esc_html_e( 'CTA label', 'aifirstsaas' ); ?></label></th>
+						<td>
+							<input id="aifirst-cta-label" type="text" class="regular-text"
+								name="<?php echo esc_attr( self::OPTION_NAME ); ?>[cta_label]"
+								value="<?php echo esc_attr( isset( $opt['cta_label'] ) && '' !== $opt['cta_label'] ? $opt['cta_label'] : __( 'Submit Your Tool', 'aifirstsaas' ) ); ?>" />
 						</td>
 					</tr>
 					</tbody>

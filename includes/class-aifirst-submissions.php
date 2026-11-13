@@ -68,17 +68,83 @@ class AIFirst_Submissions {
 			$this->redirect_with( 'error', __( 'A valid email is required.', 'aifirstsaas' ) );
 		}
 
-		$body = array(
-			'tool_name'    => isset( $_POST['tool_name'] ) ? sanitize_text_field( wp_unslash( $_POST['tool_name'] ) ) : '',
-			'website'      => isset( $_POST['website'] ) ? esc_url_raw( wp_unslash( $_POST['website'] ) ) : '',
-			'category'     => isset( $_POST['category'] ) ? sanitize_text_field( wp_unslash( $_POST['category'] ) ) : '',
-			'ai_features'  => isset( $_POST['ai_features'] ) ? sanitize_textarea_field( wp_unslash( $_POST['ai_features'] ) ) : '',
-			'source_url'   => isset( $_POST['source_url'] ) ? esc_url_raw( wp_unslash( $_POST['source_url'] ) ) : '',
-			'notes'        => isset( $_POST['notes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['notes'] ) ) : '',
+		// @since 0.8.0 — richer field set + a structured `payload`.
+		// `body` remains the slim Session 4 shape for backwards-compat
+		// with existing admin list views; `payload` carries everything.
+		$allowed_pricing      = array( 'freemium', 'subscription', 'one-time', 'free', 'usage-based' );
+		$allowed_relationship = array( 'builder', 'employee', 'user', 'other' );
+
+		$pricing_model = isset( $_POST['pricing_model'] ) ? sanitize_key( wp_unslash( $_POST['pricing_model'] ) ) : '';
+		if ( ! in_array( $pricing_model, $allowed_pricing, true ) ) {
+			$pricing_model = '';
+		}
+		$relationship = isset( $_POST['relationship'] ) ? sanitize_key( wp_unslash( $_POST['relationship'] ) ) : '';
+		if ( ! in_array( $relationship, $allowed_relationship, true ) ) {
+			$relationship = '';
+		}
+
+		$has_free_plan   = ! empty( $_POST['has_free_plan'] ) ? 1 : 0;
+		$ai_on_free_plan = ! empty( $_POST['ai_on_free_plan'] ) ? 1 : 0;
+		if ( ! $has_free_plan ) {
+			$ai_on_free_plan = 0;
+		}
+
+		$starting_price = isset( $_POST['starting_price_usd'] ) ? (string) wp_unslash( $_POST['starting_price_usd'] ) : '';
+		$starting_price = '' === $starting_price ? null : max( 0, min( 99999999.99, (float) $starting_price ) );
+
+		$excerpt       = isset( $_POST['excerpt'] ) ? substr( sanitize_textarea_field( wp_unslash( $_POST['excerpt'] ) ), 0, 240 ) : '';
+		$why_ai_first  = isset( $_POST['why_ai_first'] ) ? substr( sanitize_textarea_field( wp_unslash( $_POST['why_ai_first'] ) ), 0, 1500 ) : '';
+
+		$payload = array(
+			'tool_name'          => isset( $_POST['tool_name'] ) ? sanitize_text_field( wp_unslash( $_POST['tool_name'] ) ) : '',
+			'website'            => isset( $_POST['website'] ) ? esc_url_raw( wp_unslash( $_POST['website'] ) ) : '',
+			'pricing_url'        => isset( $_POST['pricing_url'] ) ? esc_url_raw( wp_unslash( $_POST['pricing_url'] ) ) : '',
+			'logo_url'           => isset( $_POST['logo_url'] ) ? esc_url_raw( wp_unslash( $_POST['logo_url'] ) ) : '',
+			'company_name'       => isset( $_POST['company_name'] ) ? sanitize_text_field( wp_unslash( $_POST['company_name'] ) ) : '',
+			'category'           => isset( $_POST['category'] ) ? sanitize_text_field( wp_unslash( $_POST['category'] ) ) : '',
+			'subcategory'        => isset( $_POST['subcategory'] ) ? sanitize_text_field( wp_unslash( $_POST['subcategory'] ) ) : '',
+			'excerpt'            => $excerpt,
+			'ai_features'        => isset( $_POST['ai_features'] ) ? sanitize_textarea_field( wp_unslash( $_POST['ai_features'] ) ) : '',
+			'pricing_model'      => $pricing_model,
+			'has_free_plan'      => $has_free_plan,
+			'ai_on_free_plan'    => $ai_on_free_plan,
+			'starting_price_usd' => $starting_price,
+			'why_ai_first'       => $why_ai_first,
+			'submitter_name'     => isset( $_POST['submitter_name'] ) ? sanitize_text_field( wp_unslash( $_POST['submitter_name'] ) ) : '',
+			'relationship'       => $relationship,
+			'source_url'         => isset( $_POST['source_url'] ) ? esc_url_raw( wp_unslash( $_POST['source_url'] ) ) : '',
+			'notes'              => isset( $_POST['notes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['notes'] ) ) : '',
 		);
 
-		if ( 'new' === $kind && '' === $body['tool_name'] ) {
-			$this->redirect_with( 'error', __( 'Tool name is required for a new listing.', 'aifirstsaas' ) );
+		// Backwards-compatible slim body for the admin list column renderer.
+		$body = array(
+			'tool_name'    => $payload['tool_name'],
+			'website'      => $payload['website'],
+			'category'     => $payload['category'],
+			'ai_features'  => $payload['ai_features'],
+			'source_url'   => $payload['source_url'],
+			'notes'        => $payload['notes'],
+		);
+
+		if ( 'new' === $kind ) {
+			if ( '' === $payload['tool_name'] ) {
+				$this->redirect_with( 'error', __( 'Tool name is required for a new listing.', 'aifirstsaas' ) );
+			}
+			if ( '' === $payload['website'] ) {
+				$this->redirect_with( 'error', __( 'Website URL is required.', 'aifirstsaas' ) );
+			}
+			if ( '' === $payload['category'] ) {
+				$this->redirect_with( 'error', __( 'Pick a category.', 'aifirstsaas' ) );
+			}
+			if ( '' === $excerpt ) {
+				$this->redirect_with( 'error', __( 'A one-sentence excerpt is required.', 'aifirstsaas' ) );
+			}
+			if ( '' === $payload['ai_features'] ) {
+				$this->redirect_with( 'error', __( 'List at least one AI feature.', 'aifirstsaas' ) );
+			}
+			if ( '' === $why_ai_first ) {
+				$this->redirect_with( 'error', __( 'Tell us why this tool is AI-first.', 'aifirstsaas' ) );
+			}
 		}
 		if ( 'update' === $kind && '' === $tool_id ) {
 			$this->redirect_with( 'error', __( 'Choose the tool you want to update.', 'aifirstsaas' ) );
@@ -91,12 +157,13 @@ class AIFirst_Submissions {
 				'kind'       => $kind,
 				'tool_id'    => $tool_id,
 				'body'       => wp_json_encode( $body ),
+				'payload'    => wp_json_encode( $payload ),
 				'email'      => $email,
 				'status'     => 'new',
 				'source_ip'  => $ip,
 				'created_at' => current_time( 'mysql' ),
 			),
-			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 
 		if ( false === $ok ) {
@@ -104,7 +171,11 @@ class AIFirst_Submissions {
 		}
 
 		$this->mark_rate( $ip );
-		$this->redirect_with( 'ok', __( 'Thanks — submission received. Our team verifies new listings within 3-5 business days.', 'aifirstsaas' ) );
+		// @since 0.8.0 — explicit expectation-setting copy.
+		$this->redirect_with(
+			'ok',
+			__( "Thanks — we've received your submission. A reviewer will look at it within a few days and either publish your tool or email you back if we need more information.", 'aifirstsaas' )
+		);
 	}
 
 	/**

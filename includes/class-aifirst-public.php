@@ -42,7 +42,18 @@ class AIFirst_Public {
 		// @since 0.7.0 — FOUC-prevention + theme toggle.
 		add_action( 'wp_head', array( $this, 'print_fouc_script' ), 1 );
 		add_action( 'wp_footer', array( $this, 'render_theme_toggle' ) );
+		// @since 0.8.0 — Submit CTA (nav injection + floating fallback).
+		add_filter( 'wp_nav_menu_items', array( $this, 'inject_submit_cta_into_nav' ), 10, 2 );
+		add_action( 'wp_footer', array( $this, 'render_floating_submit_cta' ) );
 	}
+
+	/**
+	 * Did we successfully inject the CTA into the theme's nav this request?
+	 *
+	 * @since 0.8.0
+	 * @var bool
+	 */
+	protected $submit_cta_injected_in_nav = false;
 
 	/**
 	 * Tiny inline script in wp_head that reads localStorage before any
@@ -297,5 +308,59 @@ class AIFirst_Public {
 			|| is_post_type_archive( 'aifirst_tool' )
 			|| is_tax( array( 'aifirst_category', 'aifirst_feature' ) )
 		);
+	}
+
+	/**
+	 * Inject a "Submit Your Tool" CTA into the theme's primary nav.
+	 * Only matches locations named primary / primary-menu / main / etc.
+	 *
+	 * @since 0.8.0
+	 * @param string   $items Rendered nav items HTML.
+	 * @param stdClass $args  wp_nav_menu args; theme_location is what we key on.
+	 * @return string
+	 */
+	public function inject_submit_cta_into_nav( $items, $args ) {
+		$settings = get_option( 'aifirst_settings', array() );
+		if ( empty( $settings['cta_in_nav'] ) && isset( $settings['cta_in_nav'] ) ) {
+			return $items;
+		}
+		$location = isset( $args->theme_location ) ? (string) $args->theme_location : '';
+		if ( '' === $location ) {
+			return $items;
+		}
+		$primary = array( 'primary', 'primary-menu', 'main', 'main-menu', 'header', 'top' );
+		if ( ! in_array( $location, $primary, true ) ) {
+			return $items;
+		}
+
+		$label = isset( $settings['cta_label'] ) && '' !== (string) $settings['cta_label']
+			? (string) $settings['cta_label']
+			: __( 'Submit Your Tool', 'aifirstsaas' );
+
+		$this->submit_cta_injected_in_nav = true;
+		return $items . AIFirst_Components::submit_cta_nav_item( $label );
+	}
+
+	/**
+	 * Floating-pill fallback. Renders only if the nav path didn't fire
+	 * for this request and the floating-fallback setting is on.
+	 *
+	 * @since 0.8.0
+	 * @return void
+	 */
+	public function render_floating_submit_cta() {
+		if ( $this->submit_cta_injected_in_nav ) {
+			return;
+		}
+		$settings = get_option( 'aifirst_settings', array() );
+		// Default to on when the option isn't set yet.
+		$enabled = isset( $settings['cta_floating'] ) ? ! empty( $settings['cta_floating'] ) : true;
+		if ( ! $enabled ) {
+			return;
+		}
+		$label = isset( $settings['cta_label'] ) && '' !== (string) $settings['cta_label']
+			? (string) $settings['cta_label']
+			: __( 'Submit Your Tool', 'aifirstsaas' );
+		AIFirst_Components::submit_cta_floating( $label );
 	}
 }
