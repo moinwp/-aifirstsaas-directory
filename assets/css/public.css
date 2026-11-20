@@ -844,3 +844,257 @@
 		animation-duration: 0ms !important;
 	}
 }
+
+/* ===========================================================
+ * Session 7.3 — Mobile responsive layer (@since 0.8.2)
+ *
+ * Breakpoints mirror the canonical design file:
+ *   1024px — tablet / small desktop
+ *    767px — large phone / small tablet
+ *    640px — phone
+ *    400px — narrow phone
+ *
+ * The design uses `af-*` classes that don't exist in this plugin;
+ * the rules below are the same patterns re-mapped onto the
+ * plugin's existing `aifirst-*` classes. No markup changes.
+ * =========================================================== */
+
+/* All plugin shells get a clip-x so any wide inline element
+ * stays inside the viewport. */
+.aifirst-shell { overflow-x: clip; }
+
+/* ---------- Tablet: 1024px and below ---------- */
+@media (max-width: 1024px) {
+	.aifirst-shell .aifirst-container { padding-left: 24px; padding-right: 24px; }
+
+	/* Two- and three-column layouts collapse to a single column
+	 * with the sidebar landing below main. */
+	.aifirst-shell .aifirst-twocol,
+	.aifirst-shell .aifirst-threecol {
+		grid-template-columns: minmax(0, 1fr) !important;
+	}
+	.aifirst-shell .aifirst-threecol > aside.aifirst-filters,
+	.aifirst-shell .aifirst-twocol > aside {
+		position: static !important;
+	}
+
+	/* Grids drop one column. */
+	.aifirst-shell .aifirst-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+	.aifirst-shell .aifirst-grid-4 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+
+	/* About panel on home: stack. */
+	.aifirst-shell section.aifirst-card[style*="grid-template-columns:1fr 1.4fr"] {
+		grid-template-columns: minmax(0, 1fr) !important;
+		gap: 24px !important;
+		padding: 28px !important;
+	}
+	.aifirst-shell section.aifirst-card[style*="grid-template-columns:1fr 1.4fr"] > :nth-child(2) {
+		border-left: 0 !important;
+		border-top: 1px solid var(--aif-border);
+		padding-left: 0 !important;
+		padding-top: 12px;
+	}
+}
+
+/* ---------- Small tablet / large phone: 767px and below ---------- */
+@media (max-width: 767px) {
+	.aifirst-shell .aifirst-grid-3 { grid-template-columns: minmax(0, 1fr) !important; }
+	.aifirst-shell .aifirst-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+
+	/* Footer link row — two columns instead of a long single line. */
+	.aifirst-shell .aifirst-footer-links {
+		gap: 10px 20px;
+		justify-content: flex-start;
+	}
+
+	/* Tabs become a horizontal scroller — don't wrap, don't shrink. */
+	.aifirst-shell .aifirst-tabs {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+	.aifirst-shell .aifirst-tabs::-webkit-scrollbar { display: none; }
+	.aifirst-shell .aifirst-tab { flex: 0 0 auto; }
+}
+
+/* ---------- Phone: 640px and below ---------- */
+@media (max-width: 640px) {
+	.aifirst-shell .aifirst-container { padding: 16px; }
+
+	/* Typography — the design shrinks hero text aggressively. */
+	.aifirst-shell .aifirst-h1 { font-size: 24px; line-height: 1.2; }
+	.aifirst-shell .aifirst-h2 { font-size: 18px; line-height: 1.25; }
+	.aifirst-shell .aifirst-lead { font-size: 14px; }
+
+	/* Stat strip — tighter + drop dot separators on phone. */
+	.aifirst-shell .aifirst-stat-strip {
+		gap: 6px 14px !important;
+		padding: 12px 14px !important;
+		flex-wrap: wrap;
+	}
+	.aifirst-shell .aifirst-stat-strip__sep { display: none; }
+
+	/* Tool card — kinder density + stack toggle becomes full-width. */
+	.aifirst-shell .aifirst-tool-card {
+		padding: 12px 14px !important;
+		gap: 10px !important;
+		flex-wrap: wrap;
+	}
+	.aifirst-shell .aifirst-tool-card > .aifirst-stack-btn {
+		order: 10;
+		margin-left: 0;
+		width: 100%;
+	}
+
+	/* Tool hero avatar shrinks. */
+	.aifirst-shell .aifirst-avatar[style*="width:64px"] {
+		width: 48px !important;
+		height: 48px !important;
+	}
+
+	/* Hero button row — make primary buttons share full width equally. */
+	.aifirst-shell .aifirst-btn,
+	.aifirst-shell .aifirst-btn--primary {
+		flex: 0 0 auto;
+	}
+
+	/* Grids on phone: cards full-width. */
+	.aifirst-shell .aifirst-grid-3,
+	.aifirst-shell .aifirst-grid-4 {
+		grid-template-columns: minmax(0, 1fr) !important;
+	}
+
+	/* Home "Trending Comparisons" grid becomes one column. */
+	.aifirst-shell .aifirst-trending {
+		grid-template-columns: minmax(0, 1fr) !important;
+		gap: 0 !important;
+	}
+
+	/* Radar row wraps cleanly. */
+	.aifirst-shell .aifirst-radar-row {
+		flex-wrap: wrap;
+		row-gap: 4px;
+	}
+	.aifirst-shell .aifirst-radar-row__date {
+		width: 100% !important;
+		padding-top: 0 !important;
+	}
+
+	/* Tables stack as mini-cards (CSS-only; no data-label markup
+	 * so headers hide — captions are still shown via <caption>). */
+	.aifirst-shell .aifirst-table,
+	.aifirst-shell .aifirst-table tbody { display: block; width: 100%; }
+	.aifirst-shell .aifirst-table thead { display: none; }
+	.aifirst-shell .aifirst-table tbody tr {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 6px 12px;
+		padding: 12px 14px;
+		margin-bottom: 8px;
+		border: 1px solid var(--aif-border);
+		border-radius: 12px;
+		background: var(--aif-card);
+	}
+	.aifirst-shell .aifirst-table tbody td {
+		padding: 0 !important;
+		border: 0 !important;
+		font-size: 13px;
+	}
+	.aifirst-shell .aifirst-table tbody td:first-child {
+		grid-column: 1 / -1;
+		font-size: 14px;
+		font-weight: 600;
+	}
+	.aifirst-shell .aifirst-table tbody td[colspan] {
+		grid-column: 1 / -1;
+		text-align: center;
+	}
+
+	/* Compare matrices — inline-styled grid columns. Keep the
+	 * label column narrow, let the tool columns share what's left. */
+	.aifirst-shell [style*="display:grid"][style*="grid-template-columns:180px"] {
+		grid-template-columns: 96px repeat(3, minmax(0, 1fr)) !important;
+	}
+	.aifirst-shell [style*="display:grid"][style*="grid-template-columns:180px"] > div {
+		padding: 9px 6px !important;
+		font-size: 12px !important;
+		overflow-wrap: anywhere;
+	}
+	.aifirst-shell [style*="display:grid"][style*="grid-template-columns:200px"] {
+		grid-template-columns: 96px repeat(3, minmax(0, 1fr)) !important;
+	}
+	.aifirst-shell [style*="display:grid"][style*="grid-template-columns:200px"] > div {
+		padding: 9px 6px !important;
+		font-size: 12px !important;
+		overflow-wrap: anywhere;
+	}
+
+	/* Newsletter stacks every field. */
+	.aifirst-shell .aifirst-newsletter {
+		padding: 18px;
+		flex-direction: column;
+		align-items: stretch;
+	}
+	.aifirst-shell .aifirst-newsletter__fields {
+		flex-direction: column;
+	}
+	.aifirst-shell .aifirst-newsletter__fields input,
+	.aifirst-shell .aifirst-newsletter__fields button {
+		width: 100%;
+		min-width: 0;
+	}
+
+	/* Filter bars — each select/input becomes a half-width tile
+	 * so a filter row stays compact without a horizontal scroll. */
+	.aifirst-shell form[method="get"] > label,
+	.aifirst-shell form[method="get"] > input,
+	.aifirst-shell form[method="get"] > select,
+	.aifirst-shell form[method="get"] > button {
+		flex: 1 1 calc(50% - 5px);
+		min-width: 0;
+	}
+
+	/* Submit form fieldsets — tighter padding + full-width inputs. */
+	.aifirst-shell .aifirst-submit-fieldset { padding: 14px 16px; }
+	.aifirst-shell .aifirst-submit-fieldset input[type="text"],
+	.aifirst-shell .aifirst-submit-fieldset input[type="url"],
+	.aifirst-shell .aifirst-submit-fieldset input[type="email"],
+	.aifirst-shell .aifirst-submit-fieldset input[type="number"],
+	.aifirst-shell .aifirst-submit-fieldset select,
+	.aifirst-shell .aifirst-submit-fieldset textarea { width: 100%; }
+
+	/* Floating badges don't overlap: stack vertically on the right. */
+	.aifirst-shell .aifirst-stack-badge   { top: 12px; right: 12px; }
+	.aifirst-theme-toggle                 { top: 56px; right: 12px; }
+	.aifirst-float-submit-cta             { /* deleted in 0.8.1; left as a defensive no-op */ display: none; }
+
+	/* FAQ accordion a touch tighter. */
+	.aifirst-shell .aifirst-faq__q { padding: 14px 2px; gap: 12px; }
+
+	/* Pills become horizontal scroller when they would overflow
+	 * (keeps category/subcategory/feature pill rows one-line). */
+	.aifirst-shell > .aifirst-container > div[style*="display:flex"][style*="flex-wrap:wrap"] > .aifirst-pill {
+		white-space: nowrap;
+	}
+}
+
+/* ---------- Narrow phone: 400px and below ---------- */
+@media (max-width: 400px) {
+	.aifirst-shell .aifirst-grid-4 { grid-template-columns: minmax(0, 1fr) !important; }
+
+	/* The 10-bar maturity viz gets too dense to read: hide it on
+	 * very narrow screens; the /10 score next to it remains. */
+	.aifirst-shell .aifirst-bars { display: none; }
+
+	/* Compare matrix: drop the (optional) third tool column. The
+	 * two main tools stay side by side. */
+	.aifirst-shell [style*="display:grid"][style*="grid-template-columns:180px"] {
+		grid-template-columns: 90px repeat(2, minmax(0, 1fr)) !important;
+	}
+	.aifirst-shell [style*="display:grid"][style*="grid-template-columns:180px"] > div:nth-child(4n) {
+		display: none !important;
+	}
+
+	/* Hero button row stacks entirely. */
+	.aifirst-shell .aifirst-tool-card__meta > * { flex: 1 1 100%; }
+}

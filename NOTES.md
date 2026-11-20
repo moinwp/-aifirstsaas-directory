@@ -2,6 +2,69 @@
 
 Running log of decisions and open items. Dated entries at the top.
 
+## Session 7.3 — Mobile responsive layer (2026-11-20, 0.8.2)
+
+Pulled the full responsive layer from the canonical design artifact (`AIFitSaaS.dc.html` in the Session 7.3 uploads). The design's `af-*` classes don't exist in this plugin, so each rule was re-mapped onto the plugin's existing `aifirst-*` classes. **No markup changes.**
+
+### Breakpoints
+
+| BP | Target | What changes |
+|---|---|---|
+| **1024px** | tablet / small desktop | two- and three-column layouts collapse to single-column; grid-3 → 2 cols, grid-4 → 3 cols; About panel stacks; sidebars drop below main. |
+| **767px** | large phone / small tablet | grid-3 → 1 col, grid-4 → 2 cols; footer links switch to two-column; tab bars become horizontal scrollers (no wrap). |
+| **640px** | phone | hero typography shrinks (H1 24px, H2 18px); stat strip wraps + drops `·` separators; tool cards stack their stack toggle to full-width bottom row; tool-page avatar 64→48; all grids 1-col; tables become stacked cards (CSS-only — no `data-label` markup, headers hide); compare matrices tighten to `96px + tool cols`; newsletter stacks fields; filter rows become half-width tiles; floating badges stack vertically on the right. |
+| **400px** | narrow phone | grid-4 → 1 col; the 10-bar maturity viz hides (score number stays); compare matrix drops the optional 3rd tool column. |
+
+### Mapping af-* → aifirst-*
+
+The design's layout names mapped to the plugin's class names:
+
+| Design | Plugin |
+|---|---|
+| `af-main` | `aifirst-container` |
+| `af-grid-3` / `af-grid-4` | `aifirst-grid-3` / `aifirst-grid-4` |
+| `af-cat-layout` / `af-all-layout` / `af-side-layout` | `aifirst-twocol` / `aifirst-threecol` |
+| `af-statbar` | `aifirst-stat-strip` |
+| `af-table` | `aifirst-table` |
+| `af-cmp` | the inline-styled grids in `compare.php` / `single-aifirst_comparison.php` (targeted by attribute selector on `grid-template-columns:180px` / `200px`) |
+| `af-pillrow` | `aifirst-tabs` |
+| `af-row-card` | `aifirst-tool-card` |
+| `af-newsletter` | `aifirst-newsletter` |
+| `af-footer-grid` | `aifirst-footer-links` |
+| `af-about` | the `aifirst-card` on the home page with the inline 2-col grid style |
+| `af-cl-row` | `aifirst-radar-row` |
+| `af-faq-q` | `aifirst-faq__q` |
+| `af-lb-bars` | `aifirst-bars` |
+| `af-filters` / `af-filterbar` | `aifirst-filters` + generic form filter row |
+| `af-tool-avatar` | the 64-px inline-styled hero avatar on `single-aifirst_tool.php` (attribute selector) |
+
+### Notable compromises
+
+- **Tables stack without `data-label`.** The design uses `<td data-label="…">` so each stacked cell shows its column header in miniature. This plugin's templates never set `data-label`, and this session was CSS-only, so the stacked-card rendering just hides the `<thead>` and lays the cells in a 2-col grid. The first cell (usually the tool name) spans both columns to keep the row identifiable.
+- **Compare matrices targeted by attribute selector.** The matrices are inline-styled `display:grid; grid-template-columns:180px 1fr 1fr 1fr;`. No class to hook, so the rules select on `[style*="grid-template-columns:180px"]`. Narrow phone hides every 4th grid child to drop the third tool column.
+- **Hero avatar size selector.** Same reason — the 64-px avatar is inline-styled; targeted via `[style*="width:64px"]` to shrink to 48 px.
+- **Pills in category / feature headers** are already in `flex-wrap:wrap` containers; the only addition is `white-space:nowrap` so each pill's text doesn't fold mid-word.
+
+### Walk-through
+
+Open the live site at 390 × 844 and 820 × 1180 (DevTools mobile preset or the Responsive Preview in the design zip). Pages to click:
+
+| Page | At 390 px |
+|---|---|
+| `/` | Hero stacks avatar / H1 / stats / button rail; "This week" card full-width; grid rails single-column; About panel stacks. |
+| `/tools/` | A–Z jumper wraps; filter sidebar drops below main; tool cards stack with the stack toggle on its own row. |
+| `/tools/<slug>/` | 64-px hero avatar shrinks to 48 px; stat strip wraps; tab bar horizontally scrolls; features/plans tables become stacked cards. |
+| `/compare/<a>/<b>/` | Metric + feature matrices tighten to a 96 px label column + the two tool columns. At 400 px, the optional 3rd column is hidden. |
+| `/stack/` | Sections stack; section-2 stat strip wraps; missing-features rows wrap cleanly. |
+| `/submit/` | Each fieldset becomes full-width; every input, select, textarea stretches to 100%. |
+| `/categories/` and `/categories/<slug>/` | Category grid 1-col; filter row becomes 2-up tiles; "Recent updates" sidebar drops below the main list. |
+| Any page footer | Links row wraps to two columns at ≤767 px; single column at ≤640 px. |
+
+### Deferred
+
+- **`data-label` on `<td>`** in the Features and Plans tables on the tool page. Markup-touch change; later session. Until then the stacked cells show their value without a header mini-label.
+- **A hamburger menu.** The plugin doesn't ship its own topbar (theme-provided); nothing to collapse into a burger here. Themes without a mobile menu are a theme-level concern.
+
 ## Session 7.2 (revised) — Submit nav + measured form (2026-11-13, 0.8.1)
 
 **0.8.0 shipped the wrong thing.** The spec was for a minimal nav link and a tight form; the 0.8.0 build added a styled CTA pill, a floating fallback, a settings UI with three toggles, and a seven-extra-fields form. 0.8.1 is a corrective release that strips the over-build back to the revised spec.
