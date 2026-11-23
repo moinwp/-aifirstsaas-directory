@@ -76,13 +76,13 @@ $faq      = AIFirst_Query::faq( array( 'category_id' => $term->slug ) );
 				<tbody>
 					<?php foreach ( $haves as $t ) : ?>
 						<tr>
-							<td style="font-weight:600;">
+							<td data-label="<?php esc_attr_e( 'Tool', 'aifirstsaas' ); ?>" style="font-weight:600;">
 								<a href="<?php echo esc_url( get_permalink( (int) $t->post_id ) ); ?>"><?php echo esc_html( $t->post_title ); ?></a>
 							</td>
-							<td><?php AIFirst_Components::plan_pill( $t->feat_plan ); ?></td>
-							<td><span class="aifirst-status--<?php echo esc_attr( sanitize_html_class( $t->feat_status ) ); ?>"><?php echo esc_html( $t->feat_status ); ?></span></td>
-							<td><?php echo $t->feat_is_native ? esc_html__( 'Native', 'aifirstsaas' ) : esc_html__( 'Third-party', 'aifirstsaas' ); ?></td>
-							<td><?php echo esc_html( (int) $t->ai_maturity_score ); ?>/10</td>
+							<td data-label="<?php esc_attr_e( 'Plan', 'aifirstsaas' ); ?>"><?php AIFirst_Components::plan_pill( $t->feat_plan ); ?></td>
+							<td data-label="<?php esc_attr_e( 'Status', 'aifirstsaas' ); ?>"><span class="aifirst-status--<?php echo esc_attr( sanitize_html_class( $t->feat_status ) ); ?>"><?php echo esc_html( $t->feat_status ); ?></span></td>
+							<td data-label="<?php esc_attr_e( 'Type', 'aifirstsaas' ); ?>"><?php echo $t->feat_is_native ? esc_html__( 'Native', 'aifirstsaas' ) : esc_html__( 'Third-party', 'aifirstsaas' ); ?></td>
+							<td data-label="<?php esc_attr_e( 'Maturity', 'aifirstsaas' ); ?>"><?php echo esc_html( (int) $t->ai_maturity_score ); ?>/10</td>
 						</tr>
 					<?php endforeach; ?>
 				</tbody>

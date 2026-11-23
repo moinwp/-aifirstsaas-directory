@@ -437,6 +437,37 @@
 		};
 	};
 
+	/**
+	 * Filter sidebar toggle for the tools archive and category pages.
+	 * The sidebar starts closed on mobile (≤767px) and is always open
+	 * at larger widths — the mq-watch here keeps `open` in sync with
+	 * viewport changes so a desktop user who rotates to portrait
+	 * doesn't see the sidebar disappear.
+	 *
+	 * @since 0.8.3
+	 */
+	window.AIFirstFilterToggle = function ( config ) {
+		return {
+			open:   window.matchMedia( '(min-width: 768px)' ).matches,
+			mobile: window.matchMedia( '(max-width: 767px)' ).matches,
+			init() {
+				const mq = window.matchMedia( '(max-width: 767px)' );
+				const sync = () => {
+					this.mobile = mq.matches;
+					this.open   = ! mq.matches; // closed on mobile, open elsewhere.
+				};
+				if ( mq.addEventListener ) {
+					mq.addEventListener( 'change', sync );
+				} else if ( mq.addListener ) {
+					mq.addListener( sync ); // legacy Safari
+				}
+			},
+			toggle() {
+				this.open = ! this.open;
+			}
+		};
+	};
+
 	// Small helper for the Compare page's selector submit.
 	window.AIFirstGoCompare = function ( a, b, c ) {
 		if ( ! window.AIFirstPublic ) return;

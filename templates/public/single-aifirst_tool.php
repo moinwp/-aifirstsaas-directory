@@ -199,14 +199,14 @@ $cat  = ( $cats && ! is_wp_error( $cats ) ) ? $cats[0] : null;
 								<tbody>
 									<?php foreach ( $features as $f ) : ?>
 										<tr>
-											<td style="font-weight:600;"><?php echo esc_html( $f->feature_name ); ?></td>
-											<td>
+											<td data-label="<?php esc_attr_e( 'Feature', 'aifirstsaas' ); ?>" style="font-weight:600;"><?php echo esc_html( $f->feature_name ); ?></td>
+											<td data-label="<?php esc_attr_e( 'Type', 'aifirstsaas' ); ?>">
 												<span class="aifirst-dot" style="background:<?php echo $f->is_native ? 'var(--aif-accent)' : 'var(--aif-warn)'; ?>;"></span>
 												<?php echo $f->is_native ? esc_html__( 'Native', 'aifirstsaas' ) : esc_html__( 'Third-party', 'aifirstsaas' ); ?>
 											</td>
-											<td><?php AIFirst_Components::plan_pill( $f->plan ); ?></td>
-											<td><span class="aifirst-status--<?php echo esc_attr( sanitize_html_class( $f->status ) ); ?>"><?php echo esc_html( $f->status ); ?></span></td>
-											<td><?php echo esc_html( $f->since ); ?></td>
+											<td data-label="<?php esc_attr_e( 'Plan', 'aifirstsaas' ); ?>"><?php AIFirst_Components::plan_pill( $f->plan ); ?></td>
+											<td data-label="<?php esc_attr_e( 'Status', 'aifirstsaas' ); ?>"><span class="aifirst-status--<?php echo esc_attr( sanitize_html_class( $f->status ) ); ?>"><?php echo esc_html( $f->status ); ?></span></td>
+											<td data-label="<?php esc_attr_e( 'Since', 'aifirstsaas' ); ?>"><?php echo esc_html( $f->since ); ?></td>
 										</tr>
 									<?php endforeach; ?>
 								</tbody>

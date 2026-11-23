@@ -846,6 +846,49 @@
 }
 
 /* ===========================================================
+ * Session 7.4 — Mobile parity patches (@since 0.8.3)
+ * =========================================================== */
+
+/* Filter toggle button — the mobile-only full-width opener
+ * placed above a collapsible filter area. Hidden ≥768px. */
+.aifirst-filter-toggle {
+	display: none;
+	width: 100%;
+	padding: 11px 14px;
+	border-radius: var(--aif-radius-sm, 8px);
+	border: 1px solid var(--aif-border);
+	background: var(--aif-card);
+	color: var(--aif-text);
+	font-weight: 600;
+	font-size: 13.5px;
+	cursor: pointer;
+	margin: 0 0 12px;
+	text-align: left;
+}
+.aifirst-filter-toggle:hover { border-color: var(--aif-accent); color: var(--aif-accent); }
+@media (max-width: 767px) {
+	.aifirst-filter-toggle { display: block; }
+	.aifirst-filters.is-closed { display: none !important; }
+	.aifirst-filters { position: static !important; }
+}
+
+/* Compare grid — class hooks replace the fragile
+ * attribute-selector + nth-child hacks. @since 0.8.3 */
+@media (max-width: 640px) {
+	.aifirst-shell .aifirst-cmp {
+		grid-template-columns: 96px repeat(3, minmax(0, 1fr)) !important;
+	}
+	.aifirst-shell .aifirst-cmp.aifirst-cmp--no-c {
+		grid-template-columns: 112px repeat(2, minmax(0, 1fr)) !important;
+	}
+	.aifirst-shell .aifirst-cmp > div {
+		padding: 9px 6px !important;
+		font-size: 12px !important;
+		overflow-wrap: anywhere;
+	}
+}
+
+/* ===========================================================
  * Session 7.3 — Mobile responsive layer (@since 0.8.2)
  *
  * Breakpoints mirror the canonical design file:
@@ -980,11 +1023,32 @@
 		padding-top: 0 !important;
 	}
 
-	/* Tables stack as mini-cards (CSS-only; no data-label markup
-	 * so headers hide — captions are still shown via <caption>). */
+	/* Tables stack as mini-cards. @since 0.8.3 the thead is kept
+	 * and rendered as small pill chips above the stacked card
+	 * row, matching the design's .af-table pattern; each
+	 * non-first cell shows its `data-label` as a small uppercase
+	 * mini-label above the value. */
 	.aifirst-shell .aifirst-table,
-	.aifirst-shell .aifirst-table tbody { display: block; width: 100%; }
-	.aifirst-shell .aifirst-table thead { display: none; }
+	.aifirst-shell .aifirst-table tbody,
+	.aifirst-shell .aifirst-table thead { display: block; width: 100%; }
+	.aifirst-shell .aifirst-table thead tr {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		border-bottom: 0 !important;
+		margin: 0 0 10px;
+	}
+	.aifirst-shell .aifirst-table thead th {
+		padding: 5px 11px !important;
+		border: 1px solid var(--aif-border);
+		border-radius: 20px;
+		font-size: 12px;
+		background: var(--aif-card);
+		color: var(--aif-text);
+		font-weight: 600;
+		letter-spacing: normal;
+		text-transform: none;
+	}
 	.aifirst-shell .aifirst-table tbody tr {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
@@ -1009,24 +1073,15 @@
 		grid-column: 1 / -1;
 		text-align: center;
 	}
-
-	/* Compare matrices — inline-styled grid columns. Keep the
-	 * label column narrow, let the tool columns share what's left. */
-	.aifirst-shell [style*="display:grid"][style*="grid-template-columns:180px"] {
-		grid-template-columns: 96px repeat(3, minmax(0, 1fr)) !important;
-	}
-	.aifirst-shell [style*="display:grid"][style*="grid-template-columns:180px"] > div {
-		padding: 9px 6px !important;
-		font-size: 12px !important;
-		overflow-wrap: anywhere;
-	}
-	.aifirst-shell [style*="display:grid"][style*="grid-template-columns:200px"] {
-		grid-template-columns: 96px repeat(3, minmax(0, 1fr)) !important;
-	}
-	.aifirst-shell [style*="display:grid"][style*="grid-template-columns:200px"] > div {
-		padding: 9px 6px !important;
-		font-size: 12px !important;
-		overflow-wrap: anywhere;
+	.aifirst-shell .aifirst-table tbody td[data-label]:not(:first-child)::before {
+		content: attr(data-label);
+		display: block;
+		font-size: 10.5px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--aif-sub);
+		margin-bottom: 2px;
 	}
 
 	/* Newsletter stacks every field. */
@@ -1085,15 +1140,6 @@
 	/* The 10-bar maturity viz gets too dense to read: hide it on
 	 * very narrow screens; the /10 score next to it remains. */
 	.aifirst-shell .aifirst-bars { display: none; }
-
-	/* Compare matrix: drop the (optional) third tool column. The
-	 * two main tools stay side by side. */
-	.aifirst-shell [style*="display:grid"][style*="grid-template-columns:180px"] {
-		grid-template-columns: 90px repeat(2, minmax(0, 1fr)) !important;
-	}
-	.aifirst-shell [style*="display:grid"][style*="grid-template-columns:180px"] > div:nth-child(4n) {
-		display: none !important;
-	}
 
 	/* Hero button row stacks entirely. */
 	.aifirst-shell .aifirst-tool-card__meta > * { flex: 1 1 100%; }

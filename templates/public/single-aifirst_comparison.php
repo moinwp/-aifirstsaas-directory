@@ -66,7 +66,9 @@ $find_feat = static function ( $tool, $slug ) {
 		<?php if ( $distinct_count < 2 ) : ?>
 			<p class="aifirst-lead"><?php esc_html_e( 'This comparison does not have enough resolved tools to render. Edit it in the admin to fix the tool slugs.', 'aifirstsaas' ); ?></p>
 		<?php else :
-			$col_grid = 'grid-template-columns: 180px ' . str_repeat( '1fr ', $distinct_count ) . ';'; ?>
+			$col_grid  = 'grid-template-columns: 180px ' . str_repeat( '1fr ', $distinct_count ) . ';';
+			// @since 0.8.3
+			$cmp_class = 'aifirst-cmp' . ( $distinct_count < 3 ? ' aifirst-cmp--no-c' : '' ); ?>
 
 			<div class="aifirst-grid-3" style="margin-bottom:28px;">
 				<?php foreach ( $cols as $t ) : ?>
@@ -97,7 +99,7 @@ $find_feat = static function ( $tool, $slug ) {
 				</section>
 			<?php endif; ?>
 
-			<div style="display:grid; <?php echo esc_attr( $col_grid ); ?> gap:0; margin-bottom:28px; border:1px solid var(--aif-border); border-radius:10px; overflow:hidden;">
+			<div class="<?php echo esc_attr( $cmp_class ); ?>" style="display:grid; <?php echo esc_attr( $col_grid ); ?> gap:0; margin-bottom:28px; border:1px solid var(--aif-border); border-radius:10px; overflow:hidden;">
 				<div style="background:var(--aif-bg2); padding:10px; font-size:12px; color:var(--aif-sub); font-weight:600;"><?php esc_html_e( 'Metric', 'aifirstsaas' ); ?></div>
 				<?php foreach ( $cols as $t ) : ?>
 					<div style="background:var(--aif-bg2); padding:10px; font-weight:700; text-align:center;"><?php echo esc_html( $t['post']->post_title ); ?></div>
@@ -125,7 +127,7 @@ $find_feat = static function ( $tool, $slug ) {
 
 			<?php if ( ! empty( $feature_union ) ) : ?>
 				<h2 class="aifirst-h3"><?php esc_html_e( 'Feature matrix', 'aifirstsaas' ); ?></h2>
-				<div style="display:grid; <?php echo esc_attr( $col_grid ); ?> border:1px solid var(--aif-border); border-radius:10px; overflow:hidden; margin-bottom:28px;">
+				<div class="<?php echo esc_attr( $cmp_class ); ?>" style="display:grid; <?php echo esc_attr( $col_grid ); ?> border:1px solid var(--aif-border); border-radius:10px; overflow:hidden; margin-bottom:28px;">
 					<div style="background:var(--aif-bg2); padding:9px 10px; font-size:12px; color:var(--aif-sub); font-weight:600;"><?php esc_html_e( 'Feature', 'aifirstsaas' ); ?></div>
 					<?php foreach ( $cols as $t ) : ?>
 						<div style="background:var(--aif-bg2); padding:9px; text-align:center; font-weight:700;"><?php echo esc_html( $t['post']->post_title ); ?></div>

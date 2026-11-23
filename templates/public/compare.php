@@ -159,9 +159,12 @@ $find_feat = function ( $tool, $slug ) {
 			<p class="aifirst-lead"><?php esc_html_e( 'Pick at least two tools to compare.', 'aifirstsaas' ); ?></p>
 		<?php else :
 			$col_count = $distinct_count;
-			$col_grid  = 'grid-template-columns: 180px ' . str_repeat( '1fr ', $col_count ) . ';'; ?>
+			$col_grid  = 'grid-template-columns: 180px ' . str_repeat( '1fr ', $col_count ) . ';';
+			// @since 0.8.3 — class hook so responsive CSS can
+			// swap the template columns without string hacks.
+			$cmp_class = 'aifirst-cmp' . ( $distinct_count < 3 ? ' aifirst-cmp--no-c' : '' ); ?>
 
-			<div style="display:grid; <?php echo esc_attr( $col_grid ); ?> gap:0; margin-bottom:28px; border:1px solid var(--aif-border); border-radius:10px; overflow:hidden;">
+			<div class="<?php echo esc_attr( $cmp_class ); ?>" style="display:grid; <?php echo esc_attr( $col_grid ); ?> gap:0; margin-bottom:28px; border:1px solid var(--aif-border); border-radius:10px; overflow:hidden;">
 				<div style="background:var(--aif-bg2); padding:10px; font-size:12px; color:var(--aif-sub); font-weight:600;"><?php esc_html_e( 'Metric', 'aifirstsaas' ); ?></div>
 				<?php foreach ( $cols as $t ) : ?>
 					<div style="background:var(--aif-bg2); padding:10px; font-weight:700; text-align:center;"><?php echo esc_html( $t['post']->post_title ); ?></div>
@@ -193,7 +196,7 @@ $find_feat = function ( $tool, $slug ) {
 			<?php if ( empty( $feature_union ) ) : ?>
 				<p class="aifirst-lead"><?php esc_html_e( 'No features catalogued on these tools yet.', 'aifirstsaas' ); ?></p>
 			<?php else : ?>
-				<div style="display:grid; <?php echo esc_attr( $col_grid ); ?> border:1px solid var(--aif-border); border-radius:10px; overflow:hidden;">
+				<div class="<?php echo esc_attr( $cmp_class ); ?>" style="display:grid; <?php echo esc_attr( $col_grid ); ?> border:1px solid var(--aif-border); border-radius:10px; overflow:hidden;">
 					<div style="background:var(--aif-bg2); padding:9px 10px; font-size:12px; color:var(--aif-sub); font-weight:600;"><?php esc_html_e( 'Feature', 'aifirstsaas' ); ?></div>
 					<?php foreach ( $cols as $t ) : ?>
 						<div style="background:var(--aif-bg2); padding:9px; text-align:center; font-weight:700;"><?php echo esc_html( $t['post']->post_title ); ?></div>

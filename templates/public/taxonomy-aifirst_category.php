@@ -96,8 +96,25 @@ $cat_radar = ! empty( $cat_tool_ids ) ? AIFirst_Query::radar_recent( array( 'too
 			<?php endif; ?>
 		</div>
 
-		<form method="get" style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap; align-items:center;">
-			<label><?php esc_html_e( 'Sort', 'aifirstsaas' ); ?>:
+		<?php
+		// @since 0.8.3 — mobile filter toggle.
+		$aifirst_active_filters = 0;
+		if ( 'maturity' !== $sort ) { $aifirst_active_filters++; }
+		if ( 'any' !== $free )      { $aifirst_active_filters++; }
+		if ( $min > 0 )             { $aifirst_active_filters++; }
+		$aifirst_filter_label = $aifirst_active_filters > 0
+			? sprintf( /* translators: %d: count */ __( '⚙ Filters (%d)', 'aifirstsaas' ), $aifirst_active_filters )
+			: __( '⚙ Filters', 'aifirstsaas' );
+		?>
+		<div x-data="AIFirstFilterToggle({})" x-init="init()" style="margin-bottom:18px;">
+			<button type="button"
+				class="aifirst-filter-toggle"
+				@click="toggle()"
+				:aria-expanded="open ? 'true' : 'false'">
+				<?php echo esc_html( $aifirst_filter_label ); ?>
+			</button>
+			<form method="get" class="aifirst-filters" :class="!open && mobile && 'is-closed'" style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+				<label><?php esc_html_e( 'Sort', 'aifirstsaas' ); ?>:
 				<select name="sort" onchange="this.form.submit()">
 					<option value="maturity" <?php selected( $sort, 'maturity' ); ?>><?php esc_html_e( 'AI Maturity (high → low)', 'aifirstsaas' ); ?></option>
 					<option value="alpha" <?php selected( $sort, 'alpha' ); ?>><?php esc_html_e( 'Alphabetical', 'aifirstsaas' ); ?></option>
@@ -115,7 +132,8 @@ $cat_radar = ! empty( $cat_tool_ids ) ? AIFirst_Query::radar_recent( array( 'too
 			<label><?php esc_html_e( 'Min maturity', 'aifirstsaas' ); ?>:
 				<input type="number" name="min" min="0" max="10" value="<?php echo esc_attr( $min ); ?>" onchange="this.form.submit()" style="width:70px;" />
 			</label>
-		</form>
+			</form>
+		</div>
 
 		<div class="aifirst-twocol">
 			<main>

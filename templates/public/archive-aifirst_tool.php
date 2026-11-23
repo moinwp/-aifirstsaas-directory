@@ -69,8 +69,24 @@ $faq      = AIFirst_Query::faq();
 			<?php endforeach; ?>
 		</div>
 
-		<div class="aifirst-threecol">
-			<aside class="aifirst-filters">
+		<?php
+		// @since 0.8.3 — mobile filter toggle.
+		$aifirst_active_filters = 0;
+		if ( '' !== $cat_f )           { $aifirst_active_filters++; }
+		if ( 'any' !== $free_f )       { $aifirst_active_filters++; }
+		if ( $min_f > 0 )              { $aifirst_active_filters++; }
+		$aifirst_filter_label = $aifirst_active_filters > 0
+			? sprintf( /* translators: %d: count */ __( '⚙ Filters (%d)', 'aifirstsaas' ), $aifirst_active_filters )
+			: __( '⚙ Filters', 'aifirstsaas' );
+		?>
+		<div class="aifirst-threecol" x-data="AIFirstFilterToggle({})" x-init="init()">
+			<button type="button"
+				class="aifirst-filter-toggle"
+				@click="toggle()"
+				:aria-expanded="open ? 'true' : 'false'">
+				<?php echo esc_html( $aifirst_filter_label ); ?>
+			</button>
+			<aside class="aifirst-filters" :class="!open && mobile && 'is-closed'">
 				<form method="get">
 					<strong><?php esc_html_e( 'Filters', 'aifirstsaas' ); ?></strong>
 

@@ -2,6 +2,61 @@
 
 Running log of decisions and open items. Dated entries at the top.
 
+## Session 7.4 — Mobile parity with the design (2026-11-23, 0.8.3)
+
+Three targeted additions on top of Session 7.3's CSS-only layer. No other scope touched.
+
+### 1. Filter toggle (≤767 px)
+
+- `window.AIFirstFilterToggle({})` factory in `assets/js/public.js`. Reads `(min-width: 768px)` at init, keeps `open` in sync with a matchMedia change listener (addEventListener + legacy addListener fallback). `mobile` flag drives whether `is-closed` applies.
+- Full-width button `<button class="aifirst-filter-toggle">⚙ Filters (n)</button>` sits above the filter area. `n` is counted server-side from the active GET filters; omitted when 0. `aria-expanded` binds to `open` for a11y.
+- Applied on **two templates**:
+  - `templates/public/archive-aifirst_tool.php` — wraps the `aifirst-threecol` block + its `<aside class="aifirst-filters">`.
+  - `templates/public/taxonomy-aifirst_category.php` — the flat filter form is given `class="aifirst-filters"` so the same CSS collapses it. Wraps the whole block in a `<div>` carrying the Alpine data.
+- CSS: `.aifirst-filter-toggle { display: none }` default; `@media (max-width: 767px) { display: block; }` and `.aifirst-filters.is-closed { display: none !important }`.
+- Above 767 px the sidebar is always visible — `open` snaps to `true` on viewport change.
+
+### 2. Table headers on phones (≤640 px)
+
+- Added `data-label="…"` to every `<td>` in:
+  - Features table on `single-aifirst_tool.php` (Features tab) — `Feature / Type / Plan / Status / Since`
+  - "Tools that have it" table on `taxonomy-aifirst_feature.php` — `Tool / Plan / Status / Type / Maturity`
+- CSS now matches the design's `.af-table` rules: the `<thead>` is **shown as small pill chips** above the stacked card list (rather than being hidden), and each non-first `<td>` with a `data-label` emits a `::before` with the label in small uppercase.
+- **Plans aren't a table** in this plugin — rendered as a grid of `.aifirst-card` on the Plans tab, so there's no markup to add `data-label` to there. Noted in the walk-through.
+- Other `.aifirst-table` usages that already had `<thead>`s but weren't on the mobile audit list (e.g. compare matrix *data* tables inside sections) inherit the same treatment automatically.
+
+### 3. Compare grid — class-based `no-c` rule
+
+- `templates/public/compare.php` + `templates/public/single-aifirst_comparison.php` now emit `class="aifirst-cmp"` on both grids (metric strip + feature matrix), plus `aifirst-cmp--no-c` when `$distinct_count < 3`.
+- CSS replaces the Session 7.3 attribute-selector + 400-px `nth-child` hack with proper class rules:
+  - `@media (max-width: 640px) .aifirst-cmp { grid-template-columns: 96px repeat(3, 1fr) }` — three-tool case
+  - `@media (max-width: 640px) .aifirst-cmp--no-c { grid-template-columns: 112px repeat(2, 1fr) }` — two-tool case
+- The stale 400-px `nth-child(4n) { display: none }` hack is **deleted** from `public.css`.
+
+### Walk-through
+
+**390 × 844 (phone)**
+
+| URL | Expected |
+|---|---|
+| `/tools/` | Full-width **⚙ Filters** button above the list. Tap → sidebar drops down, tap again → closes. Button shows `(n)` once you pick a category / change the free-AI select / set min maturity. Above 768 px the button is hidden and the sidebar is always open. |
+| `/categories/<slug>/` | Same pattern. Filter form is the collapsible target. |
+| `/tools/<slug>/` → Features tab | Features table stacks. Thead shows as 5 pill chips (Feature / Type / Plan / Status / Since). Each stacked card: tool name spans both columns, then four mini-labeled cells. |
+| `/ai-features/<slug>/` | "Tools that have it" stacks the same way (Tool / Plan / Status / Type / Maturity). |
+| `/compare/jasper/grammarly/` | Two-tool case: grid is `112px + 2× 1fr` — no empty column. |
+| `/compare/jasper/grammarly/hubspot/` | Three-tool case: grid is `96px + 3× 1fr`. |
+
+**820 × 1180 (tablet)**
+
+- Filter button hidden; sidebar always visible on `/tools/` and `/categories/<slug>/`.
+- Feature tables render as normal HTML tables (thead above, rows below).
+- Compare grid renders as the normal `180px + N × 1fr` wide layout.
+
+### Install path reminder (site is live)
+
+- **Back up the database first** before installing.
+- In WP admin: **Plugins → Add New → Upload Plugin → Replace current with uploaded** (do **not** delete-then-reinstall; the custom tables + their rows would be dropped by the `uninstall.php` cleanup).
+
 ## Session 7.3 — Mobile responsive layer (2026-11-20, 0.8.2)
 
 Pulled the full responsive layer from the canonical design artifact (`AIFitSaaS.dc.html` in the Session 7.3 uploads). The design's `af-*` classes don't exist in this plugin, so each rule was re-mapped onto the plugin's existing `aifirst-*` classes. **No markup changes.**
