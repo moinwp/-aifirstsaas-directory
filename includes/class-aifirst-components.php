@@ -576,4 +576,85 @@ class AIFirst_Components {
 		}
 		echo '</div></section>';
 	}
+
+	/**
+	 * Render the AIFirstSaaS brand mark.
+	 *
+	 * Reads one of the shipped SVGs from assets/logos/ and echoes it
+	 * inline so it can inherit `currentColor`, sit responsively, and
+	 * participate in theme CSS without a separate <img> fetch.
+	 *
+	 * @since 0.8.4
+	 * @param array $args {
+	 *     @type string $variant  'color' | 'mono-dark' | 'mono-light' | 'lockup'. Default 'color'.
+	 *     @type int    $size     Pixel width. Height follows via viewBox. Default 32.
+	 *     @type string $class    Extra CSS classes. Default ''.
+	 *     @type string $alt      Accessible label. Default 'AIFirstSaaS'.
+	 * }
+	 * @return void
+	 */
+	public static function brand_mark( $args = array() ) {
+		$args = wp_parse_args(
+			$args,
+			array(
+				'variant' => 'color',
+				'size'    => 32,
+				'class'   => '',
+				'alt'     => __( 'AIFirstSaaS', 'aifirstsaas' ),
+			)
+		);
+		$allowed = array( 'color', 'mono-dark', 'mono-light', 'lockup' );
+		if ( ! in_array( $args['variant'], $allowed, true ) ) {
+			$args['variant'] = 'color';
+		}
+		$file = 'lockup' === $args['variant']
+			? AIFIRST_PLUGIN_DIR . 'assets/logos/lockup-horizontal.svg'
+			: AIFIRST_PLUGIN_DIR . 'assets/logos/mark-' . $args['variant'] . '.svg';
+		if ( ! is_readable( $file ) ) {
+			return;
+		}
+		$svg = (string) file_get_contents( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		if ( '' === $svg ) {
+			return;
+		}
+
+		// Strip the leading XML declaration (not needed inline) and
+		// the outer SVG element's width/height so our size wins.
+		$svg = preg_replace( '/^<\?xml[^>]*\?>\s*/', '', $svg );
+		$svg = preg_replace( '/\s(width|height)="[^"]*"/', '', $svg, 2 );
+
+		$size   = max( 12, min( 1024, (int) $args['size'] ) );
+		$height = 'lockup' === $args['variant'] ? (int) round( $size * 80 / 360 ) : $size;
+		$class  = trim( 'aifirst-brand aifirst-brand--' . sanitize_html_class( $args['variant'] ) . ' ' . sanitize_html_class( (string) $args['class'] ) );
+
+		// Inject the class, our dimensions, and the accessible label.
+		$label = esc_attr( (string) $args['alt'] );
+		$svg   = preg_replace(
+			'/<svg\b/',
+			'<svg class="' . esc_attr( $class ) . '" width="' . (int) $size . '" height="' . (int) $height . '" aria-label="' . $label . '"',
+			$svg,
+			1
+		);
+		// The SVG came from the plugin's own assets dir — safe to echo
+		// inline. The injection only sets attributes we control.
+		echo $svg; // phpcs:ignore WordPress.Security.EscapeOutput
+	}
+
+	/**
+	 * Icon-only data URL for the WP admin menu. 20×20 SVG encoded
+	 * with the mono-light variant so it inherits WP's admin-menu
+	 * `currentColor` when hovered.
+	 *
+	 * @since 0.8.4
+	 * @return string `data:image/svg+xml;utf8,...`
+	 */
+	public static function brand_menu_icon_data_url() {
+		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">'
+			. '<rect x="8" y="46" width="52" height="26" rx="7" fill="currentColor" opacity="0.4"/>'
+			. '<rect x="14" y="32" width="52" height="26" rx="7" fill="currentColor" opacity="0.7"/>'
+			. '<rect x="20" y="18" width="52" height="26" rx="7" fill="currentColor"/>'
+			. '<path d="M60 6 C61.4 18, 65 21.6, 77 23 C65 24.4, 61.4 28, 60 40 C58.6 28, 55 24.4, 43 23 C55 21.6, 58.6 18, 60 6 Z" fill="currentColor"/>'
+			. '</svg>';
+		return 'data:image/svg+xml;utf8,' . rawurlencode( $svg );
+	}
 }

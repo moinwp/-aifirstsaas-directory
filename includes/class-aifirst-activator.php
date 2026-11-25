@@ -32,6 +32,11 @@ class AIFirst_Activator {
 		update_option( 'aifirst_db_version', AIFIRST_DB_VERSION );
 		update_option( 'aifirst_show_activation_notice', 1 );
 
+		// @since 0.8.4 — fresh installs opt in to owning the homepage.
+		// `add_option()` is a no-op when the option already exists, so we
+		// never clobber an explicit later choice.
+		add_option( 'aifirst_own_home', 1 );
+
 		require_once AIFIRST_INCLUDES_DIR . 'class-aifirst-post-types.php';
 		require_once AIFIRST_INCLUDES_DIR . 'class-aifirst-taxonomies.php';
 		require_once AIFIRST_INCLUDES_DIR . 'class-aifirst-public.php';

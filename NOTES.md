@@ -2,6 +2,117 @@
 
 Running log of decisions and open items. Dated entries at the top.
 
+## Session 7.5 — Homepage & Radar activation hotfix (2026-11-25, 0.8.4)
+
+(Session prompt said "v0.8.3-hotfix" but 0.8.3 was already live from Session 7.4 — shipped as **0.8.4** so the plugin header / `AIFIRST_VERSION` / `AIFIRST_DB_VERSION` can all move forward and the upgrader's rewrite-flush path fires.)
+
+Two symptoms on the live site:
+
+1. **`/` was blank** — `resolve_template()` had an opt-in guard `if ( get_option( 'aifirst_own_home' ) )`. The option was never set, so WordPress fell back to a placeholder Page (ID 249). Documented as a Backlog item from Session 4 — now it's actually on fire.
+2. **`/changelog/` was blank** — the `aifirst_page=changelog` query var relies on a flushed rewrite. A file-replace update doesn't call `activate()`, so the Session 4 flush never ran on this install after one of the prior upgrades.
+
+### Three changes
+
+**A. Activator default.** `add_option( 'aifirst_own_home', 1 )` in `AIFirst_Activator::activate()`. `add_option` is a no-op when the option already exists, so an editor who later unchecks the toggle isn't clobbered.
+
+**B. One-shot migration for live sites.** Same `add_option( 'aifirst_own_home', 1 )` in `AIFirst_Upgrader::maybe_upgrade()`. A file-replace update (which bypasses `activate`) picks up the default on the next admin page load without touching an explicit choice.
+
+**C. Rewrite-flush confirmed.** Both paths already wired:
+  - Activator calls `flush_rewrite_rules()` at the end of `activate()`.
+  - Upgrader sets `aifirst_needs_rewrite_flush = 1`; `AIFirst_Public::maybe_flush_rewrites()` runs on `init` priority 99 and consumes the flag.
+
+Bumping `AIFIRST_DB_VERSION` from `0.8.0` → `0.8.4` is what triggers both paths on the next admin page load after the file is in place.
+
+### D. Tool-card title/category spacing fix
+
+`.aifirst-tool-card__body` + its children were switched from `<div>` to `<span>` in Session 6 (so the stack-toggle button could be a legal sibling of the card link). The CSS never set `display: block` on them, so title and category ran inline — "1PasswordCybersecurity" on the live site. CSS-only one-line fix: `.aifirst-tool-card__body` is now `display: flex; flex-direction: column;` and both title and cat are explicit `display: block` with a 2 px `margin-top` on the cat row.
+
+Shared component → applies everywhere `tool_card()` renders: `/tools/`, category archives, `/stack/`, blog post's "Related AI tools" block, "Popular picks" empty state on `/stack/`. Compare page uses a custom `.aifirst-card` layout, not `tool_card`, so it wasn't affected.
+
+### E. Fix invisible "Visit Website" button text
+
+The shell rule `.aifirst-shell a { color: var(--aif-accent); }` (specificity 0,1,1) outranks `.aifirst-btn--primary { color: #fff; }` (0,1,0). The primary button rendered as accent-blue text on an accent-blue background → text invisible at rest; it only became visible on hover because the `:hover` rule reasserts color later in the cascade.
+
+CSS-only fix — scoped overrides win the specificity contest without `!important`:
+
+```css
+.aifirst-shell a.aifirst-btn              { color: var(--aif-text); text-decoration: none; }
+.aifirst-shell a.aifirst-btn:hover        { color: var(--aif-text); text-decoration: none; }
+.aifirst-shell a.aifirst-btn--primary     { color: #fff; }
+.aifirst-shell a.aifirst-btn--primary:hover { color: #fff; text-decoration: none; }
+```
+
+Also kills the underline that `.aifirst-shell a:hover { text-decoration: underline }` was leaking onto button hovers. Affects every `aifirst-btn` / `aifirst-btn--primary` anchor: Visit Website on the tool page, Compare buttons, Save-this-stack, Share-this-stack, All Tools / Compare / Changelog CTAs on the homepage.
+
+### F. Brand logo ("Stack" logo system)
+
+Shipped as part of the plugin so templates and admin surfaces have a single source.
+
+**Assets** — `assets/logos/`
+
+| File | Use |
+|---|---|
+| `mark-color.svg` | Three stacked cards (gray → gray → indigo-gradient) + cyan AI spark. Primary mark. |
+| `mark-mono-dark.svg` | Same silhouette, single-color `#0B1120` (navy) with opacity layers. For light backgrounds. |
+| `mark-mono-light.svg` | Same silhouette, white with opacity layers. For dark backgrounds. |
+| `lockup-horizontal.svg` | Mark + wordmark ("AIFirstSaaS") side by side at Inter 700 / `-1.1` tracking. |
+
+**Palette** (new CSS tokens, additive — existing `--aif-accent` unchanged):
+
+```
+--aif-brand-ink:          #0B1120   /* wordmark */
+--aif-brand-cyan:         #06B6D4   /* AI spark */
+--aif-brand-indigo:       #4F46E5   /* gradient top */
+--aif-brand-indigo-deep:  #1E1B4B   /* gradient bottom */
+--aif-brand-card-gray:    #94A3B8   /* middle card */
+--aif-brand-card-gray-2:  #CBD5E1   /* bottom card */
+```
+
+**Component** — `AIFirst_Components::brand_mark( array $args )`
+
+```php
+AIFirst_Components::brand_mark(); // 32-px color mark, inline SVG
+AIFirst_Components::brand_mark( array( 'variant' => 'lockup', 'size' => 180 ) );
+AIFirst_Components::brand_mark( array( 'variant' => 'mono-light', 'size' => 24, 'class' => 'site-footer__brand' ) );
+```
+
+- Reads the SVG from disk, strips the XML declaration + the outer SVG's width/height, injects our own `width` / `height` / `class` / `aria-label`, echoes inline so themes can style with `fill: currentColor` and the icon participates in reduced-motion / dark-mode / print rules.
+- Variants: `color` (default), `mono-dark`, `mono-light`, `lockup`.
+- Clamps `size` to 12–1024; lockup keeps a 360:80 aspect ratio automatically.
+
+**Admin menu icon.** The CPT registration now uses `AIFirst_Components::brand_menu_icon_data_url()` as `menu_icon` — a `data:image/svg+xml;utf8,…` URL carrying the mono silhouette with `fill: currentColor` so WP's admin-menu hover color works. Falls back to `dashicons-screenoptions` if the components class isn't loaded yet (edge case on very early hook timing).
+
+**What is NOT changed:** `--aif-accent` (the interactive color across buttons, bars, dots) stays `#2563EB`. To repaint the whole UI in the new brand palette, redefine the token on `:root`:
+
+```css
+:root { --aif-accent: var(--aif-brand-indigo); }
+```
+
+Left as an opt-in because it would shift every button, pill, tab, and chart bar across the plugin — a visual change the content team should sign off on separately.
+
+### G. Settings toggle
+
+New section **Tools → Settings → Homepage** with a single checkbox:
+
+> **Use plugin homepage.** Let the directory plugin control the site's homepage layout.
+
+Registered as a standalone `aifirst_own_home` setting (not nested under `aifirst_settings`, because `AIFirst_Public::resolve_template()` reads it as a top-level option). Sanitized via `AIFirst_Settings::sanitize_own_home()` to `0|1`.
+
+### Deploy checklist
+
+On aifirstsaas.com — the site is live:
+
+1. **Back up the database first** (plugin auto-creates/alters nothing destructive this release, but the rule holds).
+2. **Plugins → Add New → Upload Plugin → Replace current with uploaded.** Do not delete-then-reinstall.
+3. Load any admin page once. The upgrader runs silently:
+   - `aifirst_db_version` → 0.8.4
+   - `aifirst_own_home` → 1 (only if unset)
+   - `aifirst_needs_rewrite_flush` → 1 (consumed on `init` priority 99 of the next frontend request)
+   - `aifirst_cache_version` bumps (Session 7's version-counter pattern)
+4. Visit `/` — plugin homepage renders.
+5. Visit `/changelog/` — radar feed renders.
+6. If you ever want the theme to own `/` again: **Tools → Settings → Homepage** → uncheck.
+
 ## Session 7.4 — Mobile parity with the design (2026-11-23, 0.8.3)
 
 Three targeted additions on top of Session 7.3's CSS-only layer. No other scope touched.

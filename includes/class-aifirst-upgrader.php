@@ -58,6 +58,11 @@ class AIFirst_Upgrader {
 			AIFirst_Cache::bump_version();
 		}
 
+		// @since 0.8.4 — one-shot default so a file-replace update on
+		// a live site inherits the plugin-owned homepage without
+		// re-running activate(). Never overwrites an explicit choice.
+		add_option( 'aifirst_own_home', 1 );
+
 		update_option( self::OPTION, AIFIRST_DB_VERSION );
 	}
 }

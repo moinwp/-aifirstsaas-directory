@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" role="img" aria-label="AIFirstSaaS">
+  <defs>
+    <linearGradient id="aif-mark-top" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4F46E5"/>
+      <stop offset="1" stop-color="#1E1B4B"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="46" width="52" height="26" rx="7" fill="#CBD5E1"/>
+  <rect x="14" y="32" width="52" height="26" rx="7" fill="#94A3B8"/>
+  <rect x="20" y="18" width="52" height="26" rx="7" fill="url(#aif-mark-top)"/>
+  <circle cx="64" cy="22" r="2" fill="#06B6D4" opacity="0.6"/>
+  <path d="M60 6 C61.4 18, 65 21.6, 77 23 C65 24.4, 61.4 28, 60 40 C58.6 28, 55 24.4, 43 23 C55 21.6, 58.6 18, 60 6 Z" fill="#06B6D4"/>
+</svg>

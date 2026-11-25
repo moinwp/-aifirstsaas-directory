@@ -39,6 +39,30 @@ class AIFirst_Settings {
 				),
 			)
 		);
+
+		// @since 0.8.4 — standalone option; kept outside aifirst_settings
+		// because AIFirst_Public::resolve_template() reads it as a
+		// top-level option.
+		register_setting(
+			self::OPTION_GROUP,
+			'aifirst_own_home',
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => array( $this, 'sanitize_own_home' ),
+				'default'           => 1,
+			)
+		);
+	}
+
+	/**
+	 * Sanitize the aifirst_own_home checkbox.
+	 *
+	 * @since 0.8.4
+	 * @param mixed $value Raw.
+	 * @return int
+	 */
+	public function sanitize_own_home( $value ) {
+		return ! empty( $value ) ? 1 : 0;
 	}
 
 	/**
@@ -207,6 +231,24 @@ class AIFirst_Settings {
 							<span id="aifirst-test-result" class="aifirst-test-result"></span>
 							<p class="description">
 								<?php esc_html_e( 'Saves nothing. Sends one minimal call to verify the key works.', 'aifirstsaas' ); ?>
+							</p>
+						</td>
+					</tr>
+					</tbody>
+				</table>
+
+				<h2 style="margin-top:28px;"><?php esc_html_e( 'Homepage', 'aifirstsaas' ); ?></h2>
+				<table class="form-table" role="presentation">
+					<tbody>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Use plugin homepage', 'aifirstsaas' ); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="aifirst_own_home" value="1" <?php checked( 1, (int) get_option( 'aifirst_own_home', 1 ) ); ?> />
+								<?php esc_html_e( "Let the directory plugin control the site's homepage layout.", 'aifirstsaas' ); ?>
+							</label>
+							<p class="description">
+								<?php esc_html_e( 'When on, the home URL ( / ) renders the plugin\'s front-page.php template (hero, "This week in AI features", leaderboard, trending comparisons, About panel). Turn off to let your theme own the homepage.', 'aifirstsaas' ); ?>
 							</p>
 						</td>
 					</tr>

@@ -69,7 +69,14 @@ class AIFirst_Post_Types {
 			'has_archive'         => true,
 			'hierarchical'        => false,
 			'menu_position'       => 20,
-			'menu_icon'           => 'dashicons-screenoptions',
+			// @since 0.8.4 — inline data-URL of the AIFirstSaaS brand
+			// mark so WP's admin menu uses the real logo instead of a
+			// generic dashicon. Falls back to the dashicon if the
+			// components class isn't loaded yet (edge case on very
+			// early hook timing).
+			'menu_icon'           => class_exists( 'AIFirst_Components' )
+				? AIFirst_Components::brand_menu_icon_data_url()
+				: 'dashicons-screenoptions',
 			'supports'            => array( 'title', 'editor', 'thumbnail', 'revisions', 'excerpt' ),
 		);
 

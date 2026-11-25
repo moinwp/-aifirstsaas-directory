@@ -22,6 +22,16 @@
 	--aif-good:   #16A34A;
 	--aif-warn:   #F59E0B;
 	--aif-bad:    #DC2626;
+	/* Brand palette (Stack logo system, Session 7.5 @since 0.8.4).
+	 * Additive — the existing --aif-accent stays the interactive
+	 * color so current button/pill shades don't shift. To repaint
+	 * the whole UI in the new palette: --aif-accent: var(--aif-brand-indigo); */
+	--aif-brand-ink:          #0B1120;
+	--aif-brand-cyan:         #06B6D4;
+	--aif-brand-indigo:       #4F46E5;
+	--aif-brand-indigo-deep:  #1E1B4B;
+	--aif-brand-card-gray:    #94A3B8;
+	--aif-brand-card-gray-2:  #CBD5E1;
 	/* Shape */
 	--aif-radius:        12px;
 	--aif-radius-sm:     8px;
@@ -231,6 +241,19 @@
 .aifirst-btn--primary:hover { background: #1D4ED8; color: #fff; }
 .aifirst-btn--ghost { background: transparent; }
 
+/* @since 0.8.4 — The shell rule `.aifirst-shell a { color: accent }`
+ * outranks `.aifirst-btn--primary` on specificity (0,1,1 vs 0,1,0),
+ * so the primary-button text was accent-blue on accent-blue bg and
+ * only became visible on :hover (where .aifirst-btn--primary:hover
+ * reasserts color). Scoping the button rules to `.aifirst-shell a.…`
+ * wins the contest without !important. Same fix for the neutral
+ * variant so its text stays `--aif-text`, and for the hover so the
+ * underline from `.aifirst-shell a:hover` doesn't creep in. */
+.aifirst-shell a.aifirst-btn              { color: var(--aif-text); text-decoration: none; }
+.aifirst-shell a.aifirst-btn:hover        { color: var(--aif-text); text-decoration: none; }
+.aifirst-shell a.aifirst-btn--primary     { color: #fff; }
+.aifirst-shell a.aifirst-btn--primary:hover { color: #fff; text-decoration: none; }
+
 /* Breadcrumbs */
 .aifirst-breadcrumbs {
 	font-size: 12.5px;
@@ -256,9 +279,13 @@
 	flex-wrap: wrap;
 }
 .aifirst-tool-card:hover { border-color: var(--aif-accent); text-decoration: none; }
-.aifirst-tool-card__body { flex: 1 1 160px; min-width: 0; }
-.aifirst-tool-card__title { font-weight: 700; font-size: 14px; }
-.aifirst-tool-card__cat { font-size: 12px; color: var(--aif-sub); }
+/* @since 0.8.4 — stack title + category rows. The body + children
+ * were switched to <span> in Session 6 so the stack-toggle button
+ * could be a legal sibling of the card link; without an explicit
+ * display they ran inline ("1PasswordCybersecurity"). */
+.aifirst-tool-card__body { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; }
+.aifirst-tool-card__title { font-weight: 700; font-size: 14px; display: block; }
+.aifirst-tool-card__cat { font-size: 12px; color: var(--aif-sub); display: block; margin-top: 2px; }
 .aifirst-tool-card__meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12.5px; }
 .aifirst-tool-card__score { font-weight: 700; }
 .aifirst-tool-card__view { color: var(--aif-accent); font-weight: 600; }
@@ -844,6 +871,14 @@
 		animation-duration: 0ms !important;
 	}
 }
+
+/* Brand mark (@since 0.8.4) */
+.aifirst-brand {
+	display: inline-block;
+	vertical-align: middle;
+	flex: 0 0 auto;
+}
+.aifirst-brand--lockup { max-width: 100%; height: auto; }
 
 /* ===========================================================
  * Session 7.4 — Mobile parity patches (@since 0.8.3)
