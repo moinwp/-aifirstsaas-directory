@@ -872,6 +872,82 @@
 	}
 }
 
+/* Categories Index (@since 0.8.5) */
+.aifirst-cat-pills { gap: 6px; }
+
+.aifirst-cat-active {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 14px;
+}
+.aifirst-cat-active__card {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	border-color: var(--aif-accent);
+	color: inherit;
+	transition: box-shadow 160ms ease, transform 160ms ease;
+}
+.aifirst-cat-active__card:hover { box-shadow: var(--aif-shadow-md); transform: translateY(-1px); text-decoration: none; }
+.aifirst-cat-active__title {
+	font-weight: 700;
+	font-size: 14px;
+	color: var(--aif-text);
+}
+.aifirst-cat-active__count {
+	font-size: 12px;
+	color: var(--aif-accent);
+	font-weight: 600;
+}
+
+.aifirst-cat-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 14px;
+}
+.aifirst-cat-card {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.aifirst-cat-card__header { display: flex; flex-direction: column; gap: 4px; }
+.aifirst-cat-card__title {
+	font-size: 16px;
+	font-weight: 700;
+	color: var(--aif-text);
+}
+.aifirst-cat-card__title:hover { color: var(--aif-accent); text-decoration: none; }
+.aifirst-cat-card__stats { font-size: 12px; color: var(--aif-sub); }
+.aifirst-cat-card__cta {
+	display: inline-block;
+	margin-top: 2px;
+	font-size: 12.5px;
+	font-weight: 600;
+	color: var(--aif-accent);
+}
+.aifirst-cat-card__tools { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.aifirst-cat-card__tools a {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 4px 6px;
+	border-radius: 6px;
+	font-size: 12.5px;
+	color: var(--aif-text);
+}
+.aifirst-cat-card__tools a:hover { background: var(--aif-bg2); color: var(--aif-text); text-decoration: none; }
+.aifirst-cat-card__tool-score { color: var(--aif-sub); font-weight: 600; }
+.aifirst-cat-card__empty { color: var(--aif-sub); font-size: 12.5px; margin: 0; }
+
+@media (max-width: 1024px) {
+	.aifirst-cat-grid,
+	.aifirst-cat-active { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+	.aifirst-cat-grid,
+	.aifirst-cat-active { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* Brand mark (@since 0.8.4) */
 .aifirst-brand {
 	display: inline-block;

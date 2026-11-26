@@ -2,6 +2,54 @@
 
 Running log of decisions and open items. Dated entries at the top.
 
+## Session 7.6 — Categories Index at `/categories/` (2026-11-26, 0.8.5)
+
+The plugin had per-term category archives (`/categories/<slug>/`) but no root at `/categories/` — WordPress fell through to a generic empty response. This session adds the Categories Index that the design calls for.
+
+### Routing
+
+- New rewrite rule `^categories/?$ → index.php?aifirst_page=categories-index` registered at `'top'` priority alongside the existing `/changelog/`, `/submit/`, `/features/` rules.
+- The taxonomy's own rewrite `/categories/<slug>/` is unchanged and still owns term archives — its auto-generated rule requires a term segment, so the new root-only rule never shadows it.
+- `resolve_template()` map gained `'categories-index' => 'categories-index.php'`.
+- `AIFIRST_DB_VERSION` bumped 0.8.4 → 0.8.5 so the upgrader sets `aifirst_needs_rewrite_flush = 1` on the next admin page load; the Session 4 consumer on `init` priority 99 binds the new rule without a manual Permalinks save.
+
+### Template `templates/public/categories-index.php`
+
+Four sections, top to bottom:
+
+1. **Breadcrumbs + H1** — `Home / Categories` + "Categories" + lead.
+2. **Filter pill row** — `.aifirst-tabs.aifirst-cat-pills` horizontal scroller with an "All" tab marked active + one tab per top-level category, icon-prefixed where `aifirst_category_meta.icon` is populated. Each tab links to the category archive. The horizontal-scroll + `nowrap` behaviour from Session 7.3 kicks in at ≤767 px automatically.
+3. **Most Active Categories** — up to 3 cards, bordered in the brand accent. New query helper `AIFirst_Query::most_active_categories( $limit, $days )` JOINs `aifirst_radar` + `aifirst_tool_meta` + `wp_term_relationships` and counts verified/published radar entries per category in the last 30 days. Transient-cached via the Session 7a version-counter pattern (TTL 1 h).
+4. **All Categories grid** — 3-col at desktop / 2-col at 1024 px / 1-col at 640 px. Each card:
+   - Icon + category name (header-level link).
+   - Stat line: `N tools · avg X.X/10` (from `AIFirst_Query::category_stats()`).
+   - **If the category has child terms** (WordPress is the canonical example): swap the stat line to `N subcategories` and show a "Browse subcategories →" CTA instead of a top-tools list.
+   - Otherwise: unordered list of the top 3 tools in the category with their maturity score, from `AIFirst_Query::leaderboard( ['category_id' => N, 'limit' => 3] )`.
+
+### CSS
+
+New section before the brand block in `public.css`:
+- `.aifirst-cat-active` — 3-column grid with accent-bordered cards.
+- `.aifirst-cat-grid` — 3-column grid, breakpoints 2-col at 1024 px, 1-col at 640 px.
+- `.aifirst-cat-card` + `.aifirst-cat-card__title / __stats / __cta / __tools / __tool-name / __tool-score / __empty` — card internals with hover state.
+
+### Walk-through
+
+| URL | Expected |
+|---|---|
+| `/categories/` | The new index renders: pill row at top, Most Active rail, 3-col grid of category cards. |
+| `/categories/cybersecurity/` | Unchanged — term archive renders. |
+| `/categories/wordpress/` (has children) | Term archive renders; from the index page, the WordPress card shows **N subcategories** and a **Browse subcategories →** CTA. |
+| Mobile 390 px | Pill row horizontally scrolls; Most Active + All Categories grids stack to 1 column. |
+
+### Deploy
+
+On the live site: back up DB first, then **Plugins → Add New → Upload Plugin → Replace current with uploaded**. The upgrader will:
+
+- Bump stored `aifirst_db_version` to 0.8.5.
+- Stamp `aifirst_needs_rewrite_flush = 1`. On the next frontend request's `init`, `maybe_flush_rewrites()` fires → `/categories/` binds.
+- Bump the cache version counter (Session 7a). All prior transients become orphaned, including the new `most_active_categories` keys — safe default.
+
 ## Session 7.5 — Homepage & Radar activation hotfix (2026-11-25, 0.8.4)
 
 (Session prompt said "v0.8.3-hotfix" but 0.8.3 was already live from Session 7.4 — shipped as **0.8.4** so the plugin header / `AIFIRST_VERSION` / `AIFIRST_DB_VERSION` can all move forward and the upgrader's rewrite-flush path fires.)

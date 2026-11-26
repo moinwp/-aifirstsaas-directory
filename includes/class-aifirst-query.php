@@ -745,6 +745,44 @@ class AIFirst_Query {
 	}
 
 	/**
+	 * Categories ranked by the count of verified/published radar
+	 * entries in the last N days. Backs the "Most Active Categories"
+	 * rail on the Categories Index page.
+	 *
+	 * @since 0.8.5
+	 * @param int $limit Max rows.
+	 * @param int $days  Lookback window.
+	 * @return object[] Each row: term_id, name, slug, change_count
+	 */
+	public static function most_active_categories( $limit = 3, $days = 30 ) {
+		$limit = max( 1, (int) $limit );
+		$days  = max( 1, (int) $days );
+		$cache_key = AIFirst_Cache::key( sprintf( 'active_cats_%d_%d', $limit, $days ) );
+		$cached    = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return $cached;
+		}
+		global $wpdb;
+		$radar  = $wpdb->prefix . 'aifirst_radar';
+		$meta   = $wpdb->prefix . 'aifirst_tool_meta';
+		$sql    = "SELECT t.term_id, t.name, t.slug, COUNT(*) AS change_count
+			FROM {$radar} r
+			INNER JOIN {$meta} m ON m.tool_id = r.tool_id
+			INNER JOIN {$wpdb->term_relationships} tr ON tr.object_id = m.post_id
+			INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
+			INNER JOIN {$wpdb->terms} t ON t.term_id = tt.term_id
+			WHERE tt.taxonomy = %s
+			AND r.row_status IN ('verified','published')
+			AND r.change_date >= DATE_SUB(CURDATE(), INTERVAL %d DAY)
+			GROUP BY t.term_id, t.name, t.slug
+			ORDER BY change_count DESC, t.name ASC
+			LIMIT %d";
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, 'aifirst_category', $days, $limit ) );
+		set_transient( $cache_key, $rows, HOUR_IN_SECONDS );
+		return $rows;
+	}
+
+	/**
 	 * Parse the stack-slug URL segment or the aifirst_stack cookie into a
 	 * clean, deduped array of tool_id slugs.
 	 *

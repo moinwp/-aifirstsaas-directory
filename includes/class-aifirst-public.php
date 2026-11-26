@@ -101,6 +101,13 @@ class AIFirst_Public {
 		add_rewrite_rule( '^submit/?$',    'index.php?' . self::QV_PAGE . '=submit',    'top' );
 		add_rewrite_rule( '^features/?$',  'index.php?' . self::QV_PAGE . '=features-index', 'top' );
 
+		// @since 0.8.5 — /categories/ serves a Categories Index rather
+		// than falling through to WP's empty taxonomy-root response.
+		// The aifirst_category taxonomy still owns /categories/<slug>/
+		// for term archives because its own rule requires a term
+		// segment; this matches only the exact root.
+		add_rewrite_rule( '^categories/?$', 'index.php?' . self::QV_PAGE . '=categories-index', 'top' );
+
 		// My Stack: cookie-driven /stack/ + URL-driven /stack/slug+slug+…/.
 		// @since 0.6.0
 		add_rewrite_rule( '^stack/?$', 'index.php?' . self::QV_PAGE . '=stack', 'top' );
@@ -183,11 +190,12 @@ class AIFirst_Public {
 		$page = get_query_var( self::QV_PAGE );
 		if ( $page ) {
 			$map = array(
-				'changelog'       => 'changelog.php',
-				'submit'          => 'submit.php',
-				'features-index'  => 'features-index.php',
-				'compare'         => 'compare.php',
-				'stack'           => 'stack.php',
+				'changelog'        => 'changelog.php',
+				'submit'           => 'submit.php',
+				'features-index'   => 'features-index.php',
+				'categories-index' => 'categories-index.php',
+				'compare'          => 'compare.php',
+				'stack'            => 'stack.php',
 			);
 			return isset( $map[ $page ] ) ? $map[ $page ] : '';
 		}
